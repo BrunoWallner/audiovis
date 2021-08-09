@@ -39,10 +39,16 @@ pub struct State {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     bridge_sender: mpsc::Sender<bridge::Event>,
+    top_color: [f32; 3],
+    bottom_color: [f32; 3],
+    bars: u32,
+    bar_width: f32,
+    frequency_distribution: Vec<f32>,
+
 }
 impl State {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>) -> Self {
+    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, top_color: [f32; 3], bottom_color: [f32; 3], bars: u32, bar_width: f32, frequency_distribution: Vec<f32>) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -167,6 +173,11 @@ impl State {
             index_buffer,
             num_indices,
             bridge_sender,
+            top_color,
+            bottom_color,
+            bars,
+            bar_width,
+            frequency_distribution,
         }
     }
 
@@ -186,16 +197,58 @@ impl State {
         self.bridge_sender.send(bridge::Event::Consume(tx)).unwrap();
 
         let mut output: f32 = 0.0;
-        let received = rc.recv().unwrap();
+        let r = rc.recv().unwrap();
+
+        let mut recv: Vec<f32> = Vec::new();
+        let mut s: f32 = 0.0;
+        for i in 0..self.bars as usize {
+            let mut step: f32 = (r.len() as f32 / self.bars as f32) * 0.25;
+            s += step;
+            if r.len() > s as usize {
+                let mut y: f32 = ((r[s as usize]) * 10000000000.0).sqrt();
+                y *= 0.000001;
+                recv.push(y);
+            } else {
+                recv.push(0.0);
+            }
+        }
+        // frequency distribution
+        let mut received: Vec<f32> = Vec::new();
+        let mut s: f32 = 0.0;
+        for i in 0..recv.len() {
+            let mut step: f32 = 1.0;
+            for x in 0..self.frequency_distribution.len() {
+                let part = 1.0 / self.frequency_distribution.len() as f32;
+                let percentage: f32 = i as f32 / recv.len() as f32;
+                if percentage > (x as f32 * part) && percentage < (x as f32 * part) + part {
+                    step *= self.frequency_distribution[x];
+                }
+            }
+            s += step;
+            if recv.len() > s as usize {
+                received.push(recv[s as usize]);
+            }
+            else {
+                received.push(0.0);
+            }
+        }
+
+
 
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut indices: Vec<u16> = Vec::new();
-        for i in 0..100 {
-            let x = (i as i32 - 50) as f32 / 50.0;
-            vertices.push(Vertex { position: [x - 0.010,  -1.0,                     0.0],   color: [0.1, 0.0, 0.05] });
-            vertices.push(Vertex { position: [x - 0.010,  received[i] / 20.0 - 1.0, 0.0],   color: [1.0, 0.0, 0.0] });
-            vertices.push(Vertex { position: [x + 0.010,  received[i] / 20.0 - 1.0, 0.0],   color: [1.0, 0.0, 0.0] });
-            vertices.push(Vertex { position: [x + 0.010,  -1.0,                     0.0],   color: [0.1, 0.0, 0.05] });
+        let bars = self.bars as i32;
+        let width: f32 = 1.0 / bars as f32 * self.bar_width;
+        for i in 0..self.bars as usize {
+            let x = (i as i32 - bars / 2) as f32 / (bars / 2) as f32 + width;
+            let mut y: f32 = (received[i] as f32).powf(0.5) - 1.0;
+            //let y: f32 = (received[i] as f32).powf( (i as f32 / bars as f32) * 0.125 + 0.35 ) as f32 / 100.0 - 1.0;
+            //let y: f32 = received[i] / 20.0 - 1.0;
+
+            vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color: self.bottom_color });
+            vertices.push(Vertex { position: [x - width,  y, 0.0],   color: self.top_color });
+            vertices.push(Vertex { position: [x + width,  y, 0.0],   color: self.top_color });
+            vertices.push(Vertex { position: [x + width,  -1.0, 0.0],   color: self.bottom_color });
 
             let i = vertices.len() as u16 - 4;
             indices.push(i + 2);

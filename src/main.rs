@@ -17,11 +17,42 @@ use graphics::*;
 
 mod audio;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize)]
+struct Config {
+    visual: Visual
+}
+
+#[derive(Deserialize)]
+struct Visual {
+    bottom_color: [f32; 3],
+    top_color: [f32; 3],
+    bars: u32,
+    bar_width: f32,
+    buffering: usize,
+    smoothing_size: u32,
+    smoothing_amount: u32,
+    frequency_distribution: Vec<f32>,
+}
+
+
+
 
 fn main() {
+    // reads config
+    let config_str = match std::fs::read_to_string("config.toml") {
+        Ok(config) => config,
+        Err(e) => {
+            println!("could not find config.toml:\n{}", e);
+            std::process::exit(1);
+        }
+    };
+    let config: Config = toml::from_str(&config_str).unwrap();
+
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
-    bridge::init(bridge_receiver);
+    bridge::init(bridge_receiver, config.visual.buffering, config.visual.smoothing_size, config.visual.smoothing_amount);
     let sender_clone = bridge_sender.clone();
     thread::spawn(move|| {
         audio::init(sender_clone)
@@ -31,7 +62,15 @@ fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut state = pollster::block_on(State::new(&window, bridge_sender.clone()));
+    let mut state = pollster::block_on(State::new(
+        &window,
+        bridge_sender.clone(),
+        config.visual.top_color,
+        config.visual.bottom_color,
+        config.visual.bars,
+        config.visual.bar_width,
+        config.visual.frequency_distribution,
+    ));
 
     event_loop.run(move |event, _, control_flow| {
         match event {
