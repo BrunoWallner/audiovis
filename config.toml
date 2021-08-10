@@ -1,9 +1,9 @@
 [visual]
 bottom_color= [0.0, 0.0, 0.05]
-top_color = [0.0, 0.2, 0.0]
-bars = 10000
-bar_width = 0.5
+top_color = [0.5, 0.0, 0.0]
+bars = 500
+bar_width = 1.0
 buffering = 2
-smoothing_size = 2
+smoothing_size = 5
 smoothing_amount = 1
-frequency_distribution = [0.25, 1.0, 1.0, 1.0]
+interpolate = false

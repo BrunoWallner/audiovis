@@ -33,7 +33,7 @@ struct Visual {
     buffering: usize,
     smoothing_size: u32,
     smoothing_amount: u32,
-    frequency_distribution: Vec<f32>,
+    interpolate: bool,
 }
 
 
@@ -48,11 +48,16 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let config: Config = toml::from_str(&config_str).unwrap();
+    let mut config: Config = toml::from_str(&config_str).unwrap();
+    // config check
+    if config.visual.smoothing_size > config.visual.bars {
+        println!("[ERROR]: Invalid config, smoothing_size cant be greater than amount of bars");
+        config.visual.smoothing_size = config.visual.bars;
+    }
 
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
-    bridge::init(bridge_receiver, config.visual.buffering, config.visual.smoothing_size, config.visual.smoothing_amount);
+    bridge::init(bridge_receiver, config.visual.buffering, config.visual.smoothing_size, config.visual.smoothing_amount, config.visual.bars, config.visual.interpolate);
     let sender_clone = bridge_sender.clone();
     thread::spawn(move|| {
         audio::init(sender_clone)
@@ -69,7 +74,6 @@ fn main() {
         config.visual.bottom_color,
         config.visual.bars,
         config.visual.bar_width,
-        config.visual.frequency_distribution,
     ));
 
     event_loop.run(move |event, _, control_flow| {

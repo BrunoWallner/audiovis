@@ -62,12 +62,6 @@ pub fn convert_buffer(input_buffer: Vec<f32>) -> Vec<f32> {
     for i in 0..length as usize  {
         output_buffer.push(buffer[i].norm())
     }
-    output_buffer
-}
-
-fn un_mirror(buffer: &mut Vec<f32>) {
-    for i in 0..buffer.len() / 2 {
-        buffer[i] = (buffer[i] + buffer[buffer.len() - 1 - i]) / 2.0;
-        buffer.pop();
-    }
+    // *0.35 to cut off unwanted vector information
+    output_buffer[0..(output_buffer.len() as f32 * 0.20) as usize].to_vec()
 }
