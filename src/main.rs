@@ -35,6 +35,7 @@ hide_cursor = false
 
 [audio]
 pre_fft_windowing = true
+volume_amplitude = 0.5
 ";
 
 #[derive(Deserialize, Clone)]
@@ -60,6 +61,7 @@ struct Visual {
 #[derive(Deserialize, Clone)]
 struct Audio {
     pre_fft_windowing: bool,
+    volume_amplitude: f32,
 }
 
 fn main() {
@@ -111,6 +113,7 @@ fn main() {
         config.visual.top_color,
         config.visual.bottom_color,
         config.visual.bar_width,
+        config.audio.volume_amplitude,
     ));
 
     event_loop.run(move |event, _, control_flow| {

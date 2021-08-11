@@ -12,3 +12,4 @@ hide_cursor = false
 
 [audio]
 pre_fft_windowing = true
+volume_amplitude = 0.5

@@ -26,8 +26,9 @@ It should also be possible without much work to port it over to the web but I ne
 ## Features
 ##### already implemented
 * 2-color bar coloring
+* volume control
 * configurable buffering and smoothing via config.toml
-* configurable scaling of lower frequencies for a better look
+* configurable higher scaling of lower frequencies for a better look
 * selectable amount of frequencies that should be displayed (0 - 20.000)
 
 ##### WiP
