@@ -5,11 +5,12 @@ use ringbuf::RingBuffer;
 
 pub enum Event {
     Push(Vec<f32>),
+    PushFinal( (Vec<Vec<f32>>, Vec<f32>) ),
     Consume(mpsc::Sender<Vec<f32>>),
 }
 
 
-pub fn init(receiver: mpsc::Receiver<Event>, buffering: usize, smooth_size: u32, smooth_amount: u32, frequency: u32, low_frequency_threshold: u32, l_freq_scale_doub: u8) {
+pub fn init(receiver: mpsc::Receiver<Event>, sender: mpsc::Sender<Event>, buffering: usize, smooth_size: u32, smooth_amount: u32, frequency: u32, low_frequency_threshold: u32, l_freq_scale_doub: u8) {
     let mut buffer: Vec<Vec<f32>> = Vec::new();
     let mut rounded_buffer: Vec<f32> = Vec::new();
     let mut state: f32 = 0.0;
@@ -17,15 +18,31 @@ pub fn init(receiver: mpsc::Receiver<Event>, buffering: usize, smooth_size: u32,
         match receiver.recv() {
             Ok(event) => {
                 match event {
-                    Event::Push(mut n) => {
-                        // 500 µs
-                        scale_low_frequencies(&mut n, l_freq_scale_doub, frequency, low_frequency_threshold);
-                        n = smooth_buffer(&mut buffer, n, buffering, smooth_size, smooth_amount);
-                        rounded_buffer = n;
-                    }
+                    Event::Push(n) => {
+                        let mut sender = sender.clone();
+                        let mut n = n.clone();
+                        let mut buffer = buffer.clone();
+                        let mut rounded_buffer = rounded_buffer.clone();
+                        thread::spawn(move || {
+                            scale_low_frequencies(&mut n, l_freq_scale_doub, frequency, low_frequency_threshold);
+                            n = smooth_buffer(&mut buffer, n, buffering, smooth_size, smooth_amount);
+                            rounded_buffer = n.clone();
+                            sender.send(Event::PushFinal(
+                                (
+                                    buffer,
+                                    rounded_buffer,
+                                )
+                            ));
+                        });
+                    },
                     Event::Consume(sender) => {
                         sender.send(rounded_buffer.clone()).unwrap();
+                    },
+                    Event::PushFinal((buf, r_buf)) => {
+                        buffer = buf;
+                        rounded_buffer = r_buf;
                     }
+
                 }
             },
             Err(_) => (),

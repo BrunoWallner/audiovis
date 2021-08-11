@@ -56,8 +56,10 @@ fn main() {
 
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
+    let sender_clone = bridge_sender.clone();
     bridge::init(
         bridge_receiver,
+        sender_clone,
         config.visual.buffering,
         config.visual.smoothing_size,
         config.visual.smoothing_amount,

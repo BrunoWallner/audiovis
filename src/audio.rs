@@ -41,11 +41,11 @@ fn instruction_receiver(receiver: mpsc::Receiver<Vec<f32>>, sender: mpsc::Sender
     thread::spawn(move || loop {
         match receiver.recv() {
             Ok(b) => {
-                // must use another thread !!!
-                let now = Instant::now();
-                let buffer: Vec<f32> = convert_buffer(b.to_vec(), m_freq, pre_fft_windowing);
-                sender.send(bridge::Event::Push(buffer)).unwrap();
-                println!("audio processing time: {}\tµs", now.elapsed().as_micros());
+                let sender_clone = sender.clone();
+                thread::spawn(move || {
+                    let buffer: Vec<f32> = convert_buffer(b.to_vec(), m_freq, pre_fft_windowing);
+                    sender_clone.send(bridge::Event::Push(buffer)).unwrap();
+                });
             },
             Err(_) => (),
         }
