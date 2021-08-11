@@ -183,7 +183,7 @@ impl State {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
+    pub fn input(&mut self, _event: &WindowEvent) -> bool {
         false
     }
 
@@ -191,7 +191,6 @@ impl State {
         let (tx, rc) = mpsc::channel();
         self.bridge_sender.send(bridge::Event::Consume(tx)).unwrap();
 
-        let mut output: f32 = 0.0;
         let received = rc.recv().unwrap();
 
         let mut vertices: Vec<Vertex> = Vec::new();
@@ -201,12 +200,10 @@ impl State {
         for i in 0..received.len() {
             let x = (i as f32 - bars as f32 / 2.0) / (bars as f32 / 2.0) + width;
             let y: f32 = (received[i] as f32).powf(0.35) / 2.0 - 1.0;
-            //let y: f32 = received[i] / 5.0 - 1.0;
-            let top_color: [f32; 3] = [self.top_color[0] * (y + 1.0), self.top_color[1] * (y + 1.0), self.top_color[2] * (y + 1.0)];
 
             vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color: self.bottom_color });
-            vertices.push(Vertex { position: [x - width,  y, 0.0],   color: top_color });
-            vertices.push(Vertex { position: [x + width,  y, 0.0],   color: top_color });
+            vertices.push(Vertex { position: [x - width,  y, 0.0],   color: self.top_color });
+            vertices.push(Vertex { position: [x + width,  y, 0.0],   color: self.top_color });
             vertices.push(Vertex { position: [x + width,  -1.0, 0.0],   color: self.bottom_color });
 
             let i = vertices.len() as u16 - 4;

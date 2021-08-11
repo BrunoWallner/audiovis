@@ -17,7 +17,24 @@ use graphics::*;
 
 mod audio;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
+
+const DEFAULT_CONFIG: &str =
+"
+[visual]
+bottom_color= [0.0, 0.0, 0.0]
+top_color = [0.4, 0.0, 0.0]
+bar_width = 1.0
+buffering = 2
+smoothing_size = 3
+smoothing_amount = 1
+max_frequency = 15000
+low_frequency_threshold = 750
+low_frequency_scale_doubling = 3
+
+[audio]
+pre_fft_windowing = true
+";
 
 #[derive(Deserialize, Clone)]
 struct Config {
@@ -48,11 +65,11 @@ fn main() {
     let config_str = match std::fs::read_to_string("config.toml") {
         Ok(config) => config,
         Err(e) => {
-            println!("could not find config.toml:\n{}", e);
-            std::process::exit(1);
+            println!("could not find config.toml: {}, falling back to default config", e);
+            DEFAULT_CONFIG.to_string()
         }
     };
-    let mut config: Config = toml::from_str(&config_str).unwrap();
+    let config: Config = toml::from_str(&config_str).unwrap();
 
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
