@@ -5,7 +5,10 @@ use rustfft::{FftPlanner, num_complex::Complex};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-pub fn init(sender: mpsc::Sender<bridge::Event>) {
+pub fn init(bridge_sender: mpsc::Sender<bridge::Event>, m_freq: u32, pre_fft_windowing: bool) {
+    let (tx, rc) = mpsc::channel();
+    instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing);
+
     let host = cpal::default_host();
     let input_device = host.default_input_device().unwrap();
 
@@ -19,8 +22,7 @@ pub fn init(sender: mpsc::Sender<bridge::Event>) {
     );
 
     let input_data_fn = move |data: &[f32], _: &cpal::InputCallbackInfo| {
-        let buffer: Vec<f32> = convert_buffer(data.to_vec());
-        sender.send(bridge::Event::Push(buffer).try_into().unwrap()).unwrap();
+        tx.send(data.to_vec());
     };
 
     let input_stream = input_device.build_input_stream(&config, input_data_fn, err_fn).unwrap();
@@ -34,6 +36,22 @@ fn err_fn(err: cpal::StreamError) {
     eprintln!("an error occurred on stream: {}", err);
 }
 
+use std::time::{Instant, Duration};
+fn instruction_receiver(receiver: mpsc::Receiver<Vec<f32>>, sender: mpsc::Sender<bridge::Event>, m_freq: u32, pre_fft_windowing: bool) {
+    thread::spawn(move || loop {
+        match receiver.recv() {
+            Ok(b) => {
+                // must use another thread !!!
+                let now = Instant::now();
+                let buffer: Vec<f32> = convert_buffer(b.to_vec(), m_freq, pre_fft_windowing);
+                sender.send(bridge::Event::Push(buffer)).unwrap();
+                println!("audio processing time: {}\tµs", now.elapsed().as_micros());
+            },
+            Err(_) => (),
+        }
+    });
+}
+
 fn apodize(buffer: Vec<f32>) -> Vec<f32> {
     let window = apodize::hanning_iter(buffer.len()).collect::<Vec<f64>>();
 
@@ -45,8 +63,9 @@ fn apodize(buffer: Vec<f32>) -> Vec<f32> {
     output_buffer
 }
 
-pub fn convert_buffer(input_buffer: Vec<f32>) -> Vec<f32> {
-    let input_buffer = apodize(input_buffer);
+pub fn convert_buffer(input_buffer: Vec<f32>, m_freq: u32, pre_fft_windowing: bool) -> Vec<f32> {
+    let mut input_buffer: Vec<f32> = input_buffer;
+    if pre_fft_windowing {input_buffer = apodize(input_buffer)}
 
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(input_buffer.len());
@@ -62,6 +81,10 @@ pub fn convert_buffer(input_buffer: Vec<f32>) -> Vec<f32> {
     for i in 0..length as usize  {
         output_buffer.push(buffer[i].norm())
     }
-    // *0.35 to cut off unwanted vector information
-    output_buffer[0..(output_buffer.len() as f32 * 0.20) as usize].to_vec()
+    // *0.425 to cut off unwanted vector information that just mirrors itself
+    let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.455) as usize].to_vec();
+
+    // max frequency
+    let percentage: f32 = m_freq as f32 /  20000.0;
+    output_buffer[0..(output_buffer.len() as f32 * percentage) as usize].to_vec()
 }

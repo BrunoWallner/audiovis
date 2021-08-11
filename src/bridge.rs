@@ -9,7 +9,7 @@ pub enum Event {
 }
 
 
-pub fn init(receiver: mpsc::Receiver<Event>, buffering: usize, smooth_size: u32, smooth_amount: u32, bars: u32, should_scale: bool) {
+pub fn init(receiver: mpsc::Receiver<Event>, buffering: usize, smooth_size: u32, smooth_amount: u32, frequency: u32, low_frequency_threshold: u32, l_freq_scale_doub: u8) {
     let mut buffer: Vec<Vec<f32>> = Vec::new();
     let mut rounded_buffer: Vec<f32> = Vec::new();
     let mut state: f32 = 0.0;
@@ -19,9 +19,8 @@ pub fn init(receiver: mpsc::Receiver<Event>, buffering: usize, smooth_size: u32,
                 match event {
                     Event::Push(mut n) => {
                         // 500 µs
-                        if should_scale {n = scale(n, bars) }
-                        n = smooth_buffer(&mut buffer, n, buffering, smooth_size, smooth_amount, bars);
-                        add_end(&mut n);
+                        scale_low_frequencies(&mut n, l_freq_scale_doub, frequency, low_frequency_threshold);
+                        n = smooth_buffer(&mut buffer, n, buffering, smooth_size, smooth_amount);
                         rounded_buffer = n;
                     }
                     Event::Consume(sender) => {
@@ -34,78 +33,36 @@ pub fn init(receiver: mpsc::Receiver<Event>, buffering: usize, smooth_size: u32,
     });
 }
 
-#[derive(Debug)]
-struct Interpolation {
+#[derive(Clone, Copy, Debug)]
+struct Insertion {
     value: f32,
-    place: usize,
+    position: usize,
 }
 
-fn add_end(buffer: &mut Vec<f32>) {
-    /*
-    for i in 0..(buffer.len() as f32 * 0.02) as usize {
-        buffer.insert(0, buffer[i*2]);
-    }
-    */
-    /*
-    let mut start_value: f32 = 0.0;
-    for i in 0..(buffer.len() as f32 * 0.05) as usize {
-        start_value += buffer[i];
-        buffer.insert(0, start_value / i as f32);
-    }
-    */
-    for i in 0..(buffer.len() as f32 * 0.05) as usize {
-        buffer.insert(0, buffer[0] / 2.0);
-    }
-
-    for i in 0..(buffer.len() as f32 * 0.05) as usize {
-        buffer.push(buffer[buffer.len() - 1] / 2.0);
-    }
-}
-
-/*
-fn scale(buffer: &mut Vec<f32>, wanted_size: u32) {
-    // upscaling
-    let mut shift: bool = false;
-    while wanted_size > buffer.len() as u32 {
-        for i in 0..(buffer.len() as f32 / 10.0) as usize - 1 - 10 / 2 {
-            let mut place: usize = i * 10;
-            if shift { place += 10 / 2 }
-            let value: f32 = (buffer[place] + buffer[place + 1]) / 2.0;
-            buffer.insert(place + 1, value);
-            shift = !shift;
+fn scale_low_frequencies(buffer: &mut Vec<f32>, l_freq_scale: u8, frequency: u32, low_frequency_threshold: u32) {
+    let percentage: f32 = low_frequency_threshold as f32 /  frequency as f32;
+    for _ in 0..l_freq_scale {
+        let mut position: usize = 0;
+        for _ in 0..(buffer.len() as f32 * percentage) as usize {
+            position += 1;
+            let value: f32 = (buffer[position] + buffer[position + 1]) / 2.0;
+            buffer.insert(position + 1, value);
+            position += 1;
         }
-    }
-    if buffer.len() > wanted_size as usize {
-        // downscaling
-        let difference: usize = buffer.len() - wanted_size as usize;
-        let mut place: f32 = 0.0;
-        let step = buffer.len() as f32 / difference as f32;
-        for i in 0..difference - 1 {
-            place += step;
-            buffer.remove(place as usize);
-            place -= 1.0;
+
+
+        // extra smoothing and transition
+        for i in 0..(buffer.len() as f32 * percentage * 1.1) as usize {
+            buffer[i] = (buffer[i] + buffer[i+1]) / 2.0;
         }
+
+    }
+    for i in 0..(buffer.len() as f32 * 0.015) as usize {
+        buffer.insert(0, buffer[0] / 1.25);
     }
 }
-*/
 
-fn scale(buffer: Vec<f32>, wanted_size: u32) -> Vec<f32> {
-    let mut output_buffer: Vec<f32> = Vec::new();
-    let mut s: f32 = 0.0;
-    for i in 0..wanted_size as usize {
-        let mut step: f32 = (buffer.len() as f32 / wanted_size as f32);
-        s += step;
-        if buffer.len() > s as usize {
-            output_buffer.push(buffer[s as usize]);
-        } else {
-            output_buffer.push(0.0);
-        }
-    }
-    output_buffer
-}
-
-
-fn smooth_buffer(input_buffer: &mut Vec<Vec<f32>>, new_buffer: Vec<f32>, max_buffers: usize, smooth_size: u32, smooth_amount: u32, bars: u32) -> Vec<f32> {;
+fn smooth_buffer(input_buffer: &mut Vec<Vec<f32>>, new_buffer: Vec<f32>, max_buffers: usize, smooth_size: u32, smooth_amount: u32) -> Vec<f32> {;
     // buffering and time smoothing
     if max_buffers > 0 {
         let mut output_buffer: Vec<f32> = Vec::new();
@@ -150,6 +107,15 @@ fn smooth_buffer(input_buffer: &mut Vec<Vec<f32>>, new_buffer: Vec<f32>, max_buf
                     y += output_buffer[j as usize + x as usize];
                 }
                 output_buffer[j] = y / smooth_size as f32;
+            }
+            // smooth the last bit
+            let output_buffer_len = output_buffer.len() as usize - 1;
+            for j in 0..smooth_size as usize {
+                let mut y: f32 = 0.0;
+                for i in 0..smooth_size as usize {
+                    y += output_buffer[output_buffer_len - i];
+                }
+                output_buffer[output_buffer_len - smooth_size as usize + j] = y / smooth_size as f32;
             }
         }
 

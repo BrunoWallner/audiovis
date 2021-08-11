@@ -41,12 +41,11 @@ pub struct State {
     bridge_sender: mpsc::Sender<bridge::Event>,
     top_color: [f32; 3],
     bottom_color: [f32; 3],
-    bars: u32,
     bar_width: f32,
 }
 impl State {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, top_color: [f32; 3], bottom_color: [f32; 3], bars: u32, bar_width: f32) -> Self {
+    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, top_color: [f32; 3], bottom_color: [f32; 3], bar_width: f32) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -173,7 +172,6 @@ impl State {
             bridge_sender,
             top_color,
             bottom_color,
-            bars,
             bar_width,
         }
     }
@@ -202,8 +200,8 @@ impl State {
         let width: f32 = 1.0 / bars as f32 *  self.bar_width;
         for i in 0..received.len() {
             let x = (i as f32 - bars as f32 / 2.0) / (bars as f32 / 2.0) + width;
-            let mut y: f32 = (received[i] as f32).powf(0.35) - 1.0;
-            //let y: f32 = received[i] - 1.0;
+            let y: f32 = (received[i] as f32).powf(0.35) / 2.0 - 1.0;
+            //let y: f32 = received[i] / 5.0 - 1.0;
             let top_color: [f32; 3] = [self.top_color[0] * (y + 1.0), self.top_color[1] * (y + 1.0), self.top_color[2] * (y + 1.0)];
 
             vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color: self.bottom_color });

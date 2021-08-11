@@ -19,25 +19,29 @@ mod audio;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct Config {
-    visual: Visual
+    visual: Visual,
+    audio: Audio,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct Visual {
     bottom_color: [f32; 3],
     top_color: [f32; 3],
-    bars: u32,
     bar_width: f32,
     buffering: usize,
     smoothing_size: u32,
     smoothing_amount: u32,
-    interpolate: bool,
+    max_frequency: u32,
+    low_frequency_threshold: u32,
+    low_frequency_scale_doubling: u8,
 }
 
-
-
+#[derive(Deserialize, Clone)]
+struct Audio {
+    pre_fft_windowing: bool,
+}
 
 fn main() {
     // reads config
@@ -49,18 +53,26 @@ fn main() {
         }
     };
     let mut config: Config = toml::from_str(&config_str).unwrap();
-    // config check
-    if config.visual.smoothing_size > config.visual.bars {
-        println!("[ERROR]: Invalid config, smoothing_size cant be greater than amount of bars");
-        config.visual.smoothing_size = config.visual.bars;
-    }
 
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
-    bridge::init(bridge_receiver, config.visual.buffering, config.visual.smoothing_size, config.visual.smoothing_amount, config.visual.bars, config.visual.interpolate);
+    bridge::init(
+        bridge_receiver,
+        config.visual.buffering,
+        config.visual.smoothing_size,
+        config.visual.smoothing_amount,
+        config.visual.max_frequency,
+        config.visual.low_frequency_threshold,
+        config.visual.low_frequency_scale_doubling,
+    );
+    let config_clone = config.clone();
     let sender_clone = bridge_sender.clone();
     thread::spawn(move|| {
-        audio::init(sender_clone)
+        audio::init(
+            sender_clone,
+            config_clone.visual.max_frequency,
+            config_clone.audio.pre_fft_windowing,
+        )
     });
 
     env_logger::init();
@@ -72,7 +84,6 @@ fn main() {
         bridge_sender.clone(),
         config.visual.top_color,
         config.visual.bottom_color,
-        config.visual.bars,
         config.visual.bar_width,
     ));
 

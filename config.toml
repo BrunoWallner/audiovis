@@ -1,9 +1,13 @@
 [visual]
-bottom_color= [0.0, 0.0, 0.05]
-top_color = [0.5, 0.0, 0.0]
-bars = 500
+bottom_color= [0.0, 0.0, 0.0]
+top_color = [0.5, 0.05, 0.0]
 bar_width = 1.0
 buffering = 2
-smoothing_size = 5
+smoothing_size = 3
 smoothing_amount = 1
-interpolate = false
+max_frequency = 15000
+low_frequency_threshold = 750
+low_frequency_scale_doubling = 3
+
+[audio]
+pre_fft_windowing = true
