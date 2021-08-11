@@ -31,6 +31,7 @@ smoothing_amount = 1
 max_frequency = 15000
 low_frequency_threshold = 750
 low_frequency_scale_doubling = 3
+hide_cursor = false
 
 [audio]
 pre_fft_windowing = true
@@ -53,6 +54,7 @@ struct Visual {
     max_frequency: u32,
     low_frequency_threshold: u32,
     low_frequency_scale_doubling: u8,
+    hide_cursor: bool,
 }
 
 #[derive(Deserialize, Clone)]
@@ -96,7 +98,12 @@ fn main() {
 
     env_logger::init();
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_title(String::from("audiovis"))
+        .build(&event_loop).unwrap();
+
+    // window configuration
+    window.set_cursor_visible(!config.visual.hide_cursor);
 
     let mut state = pollster::block_on(State::new(
         &window,

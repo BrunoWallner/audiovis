@@ -8,6 +8,7 @@ smoothing_amount = 1
 max_frequency = 15000
 low_frequency_threshold = 750
 low_frequency_scale_doubling = 3
+hide_cursor = false
 
 [audio]
 pre_fft_windowing = true
