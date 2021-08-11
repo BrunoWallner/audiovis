@@ -1,7 +1,7 @@
 # audiovis
 I tried to create a high quality classic audio visualiser with [cpal](https://github.com/RustAudio/cpal) as audio backend and [wgpu](https://github.com/gfx-rs/wgpu) as accelerated video frontend
 
-![Demo Video](media/demo.mov)
+![Demo Video](media/demo.gif)
 
 ### Supported Platforms
 I primarily work on Linux so there will be the best support, but I try to keep portability in mind
@@ -19,3 +19,6 @@ You currently have to manually redirect your Desktop audio to your default input
 
 but I am trying to get it working on Linux.
 
+And I am too poor and lazy to test it on macOS but it should work fine.
+
+It should also be possible without much work to port it over to the web.
