@@ -16,6 +16,10 @@ pub fn init(
     frequency: u32,
     low_frequency_threshold: u32,
     l_freq_scale_doub: u8,
+    l_freq_volume_reduction: f32,
+    l_freq_smoothing: u8,
+    l_freq_smoothing_size: u32,
+    l_freq_fading: f32,
 ) {
     let mut buffer: Vec<Vec<f32>> = Vec::new();
     let mut rounded_buffer: Vec<f32> = Vec::new();
@@ -32,6 +36,10 @@ pub fn init(
                             l_freq_scale_doub,
                             frequency,
                             low_frequency_threshold,
+                            l_freq_volume_reduction,
+                            l_freq_smoothing,
+                            l_freq_smoothing_size,
+                            l_freq_fading,
                         );
                         n = smooth_buffer(&mut buffer, n, buffering, smooth_size, smooth_amount);
                         match sender.send(Event::PushFinal((buffer, n.clone()))) {
@@ -67,27 +75,50 @@ fn scale_low_frequencies(
     l_freq_scale: u8,
     frequency: u32,
     low_frequency_threshold: u32,
+    volume_reduction: f32,
+    smoothing: u8,
+    smooth_size: u32,
+    fading: f32,
 ) {
     let percentage: f32 = low_frequency_threshold as f32 / frequency as f32;
+    let buffer_len = buffer.len();
+
+    let mut scaled: usize = 0;
     for _ in 0..l_freq_scale {
+        let low_freq_len: usize = (buffer_len as f32 * percentage) as usize + scaled;
         let mut position: usize = 0;
-        for _ in 0..(buffer.len() as f32 * percentage) as usize {
-            position += 1;
+        for _ in 0..=(low_freq_len as f32 * fading) as u32 {
             let value: f32 = (buffer[position] + buffer[position + 1]) / 2.0;
             buffer.insert(position + 1, value);
-            position += 1;
+            position += 2;
+            scaled += 1;
         }
+    }
 
-        // extra smoothing and transition
-        for i in 0..(buffer.len() as f32 * percentage * 1.1) as usize {
-            buffer[i] = (buffer[i] + buffer[i + 1]) / 2.0;
+    let low_freq_len: usize = (buffer_len as f32 * percentage) as usize + scaled;
+
+    //smoothing
+    for _ in 0..smoothing {
+        for j in 0..low_freq_len {
+            let mut y: f32 = 0.0;
+            let mut smoothed: f32 = 0.0;
+            for x in 0..smooth_size as usize {
+                let place: usize = j + x;
+                if place <= low_freq_len {
+                    y += buffer[place as usize];
+                    smoothed += 1.0;
+                }
+            }
+            buffer[j] = y / smoothed;
         }
     }
-    /*
-    for i in 0..(buffer.len() as f32 * 0.015) as usize {
-        buffer.insert(0, buffer[0] / 1.25);
+
+    // volume
+    for i in 0..low_freq_len {
+        let percentage: f32 = (low_freq_len - i) as f32 / low_freq_len as f32;
+        let calculated_volume: f32 = 1.0 - (volume_reduction * (percentage.powf(0.75) / 2.5));
+        buffer[i] *= calculated_volume;
     }
-    */
 }
 
 fn smooth_buffer(
@@ -118,7 +149,6 @@ fn smooth_buffer(
             }
             for i in 0..buffer.len() {
                 if smooth_buffer_length > i {
-                    //output_buffer[i] = (output_buffer[i] + buffer[i]) / 2.0;
                     smooth_buffer[i] += buffer[i];
                 }
             }
@@ -132,6 +162,9 @@ fn smooth_buffer(
         input_buffer.insert(0, output_buffer.clone());
 
         // horizontal smoothing
+        for _ in 0..smooth_size {
+            output_buffer.push(output_buffer[output_buffer.len() - 1]);
+        }
         for _ in 0..smooth_amount {
             for j in 0..output_buffer.len() - smooth_size as usize {
                 let mut y: f32 = 0.0;
@@ -140,16 +173,9 @@ fn smooth_buffer(
                 }
                 output_buffer[j] = y / smooth_size as f32;
             }
-            // smooth the last bit
-            let output_buffer_len = output_buffer.len() as usize - 1;
-            for j in 0..smooth_size as usize {
-                let mut y: f32 = 0.0;
-                for i in 0..smooth_size as usize {
-                    y += output_buffer[output_buffer_len - i];
-                }
-                output_buffer[output_buffer_len - smooth_size as usize + j] =
-                    y / smooth_size as f32;
-            }
+        }
+        for _ in 0..smooth_size {
+            output_buffer.pop();
         }
 
         return output_buffer;
@@ -164,6 +190,10 @@ fn smooth_buffer(
                 }
                 output_buffer[j] = y / smooth_size as f32;
             }
+        }
+
+        for _ in 0..smooth_size {
+            output_buffer.pop();
         }
 
         return output_buffer;

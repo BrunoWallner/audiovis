@@ -36,3 +36,4 @@ It should also be possible without much work to port it over to the web but I ne
 * displaying with strings instead of bars
 * modifiable config via userinput during runtime
 * selecting sampling rate of audio-stream
+* inbuilt mp3 and wav player

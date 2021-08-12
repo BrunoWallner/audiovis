@@ -201,7 +201,8 @@ impl State {
         let width: f32 = 1.0 / bars as f32 *  self.bar_width;
         for i in 0..received.len() {
             let x = (i as f32 - bars as f32 / 2.0) / (bars as f32 / 2.0) + width;
-            let y: f32 = self.volume_amplitude * ( (received[i] as f32).powf(0.35) / 2.0 ) - 1.0;
+            let y: f32 = self.volume_amplitude * ( (received[i] as f32).powf(0.75) * 0.05 ) - 1.0;
+            //let y: f32 = self.volume_amplitude * received[i] - 1.0;
 
             vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color: self.bottom_color });
             vertices.push(Vertex { position: [x - width,  y, 0.0],   color: self.top_color });

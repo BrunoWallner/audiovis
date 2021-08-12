@@ -23,19 +23,27 @@ const DEFAULT_CONFIG: &str =
 "
 [visual]
 bottom_color= [0.0, 0.0, 0.0]
-top_color = [0.4, 0.0, 0.0]
+top_color = [0.2, 0.0, 0.0]
 bar_width = 1.0
 buffering = 2
 smoothing_size = 3
 smoothing_amount = 1
 max_frequency = 15000
-low_frequency_threshold = 750
-low_frequency_scale_doubling = 3
+
+low_frequency_threshold = 1000
+low_frequency_scale_doubling = 4
+low_frequency_smoothing_size = 10
+low_frequency_smoothing = 1
+
+# lower means more fading, this could distort frequency threshold
+low_frequency_fading = 0.25
+low_frequency_volume_reduction = 2.0
+
 hide_cursor = false
 
 [audio]
 pre_fft_windowing = true
-volume_amplitude = 0.5
+volume_amplitude = 1.0
 ";
 
 #[derive(Deserialize, Clone)]
@@ -53,8 +61,14 @@ struct Visual {
     smoothing_size: u32,
     smoothing_amount: u32,
     max_frequency: u32,
+
     low_frequency_threshold: u32,
     low_frequency_scale_doubling: u8,
+    low_frequency_smoothing: u8,
+    low_frequency_smoothing_size: u32,
+    low_frequency_fading: f32,
+    low_frequency_volume_reduction: f32,
+
     hide_cursor: bool,
 }
 
@@ -87,6 +101,10 @@ fn main() {
         config.visual.max_frequency,
         config.visual.low_frequency_threshold,
         config.visual.low_frequency_scale_doubling,
+        config.visual.low_frequency_volume_reduction,
+        config.visual.low_frequency_smoothing,
+        config.visual.low_frequency_smoothing_size,
+        config.visual.low_frequency_fading,
     );
     let config_clone = config.clone();
     let sender_clone = bridge_sender.clone();
