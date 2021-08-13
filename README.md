@@ -27,13 +27,13 @@ It should also be possible without much work to port it over to the web but I ne
 ##### already implemented
 * 2-color bar coloring
 * volume control
+* string and bar visualisation
 * configurable buffering and smoothing via config.toml
 * configurable higher scaling of lower frequencies for a better look
 * selectable amount of frequencies that should be displayed (0 - 20.000)
 
 ##### WiP
 * automatically selecting Desktop output-audio-stream as input-stream (not sure if it is even possible)
-* displaying with strings instead of bars
 * modifiable config via userinput during runtime
 * selecting sampling rate of audio-stream
 * inbuilt mp3 and wav player

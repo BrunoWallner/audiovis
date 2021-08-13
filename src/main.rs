@@ -22,21 +22,22 @@ use serde::{Deserialize};
 const DEFAULT_CONFIG: &str =
 "
 [visual]
+visualisation = 'Bars'
+
 bottom_color= [0.0, 0.0, 0.0]
 top_color = [0.2, 0.0, 0.0]
 bar_width = 1.0
 buffering = 2
-smoothing_size = 3
+smoothing_size = 4
 smoothing_amount = 1
 max_frequency = 15000
 
-low_frequency_threshold = 1000
-low_frequency_scale_doubling = 4
-low_frequency_smoothing_size = 10
+low_frequency_threshold = 100
+low_frequency_scale_doubling = 3
+low_frequency_smoothing_size = 8
 low_frequency_smoothing = 1
 
-# lower means more fading, this could distort frequency threshold
-low_frequency_fading = 0.25
+low_frequency_fading = 2.0
 low_frequency_volume_reduction = 2.0
 
 hide_cursor = false
@@ -54,6 +55,7 @@ struct Config {
 
 #[derive(Deserialize, Clone)]
 struct Visual {
+    visualisation: String,
     bottom_color: [f32; 3],
     top_color: [f32; 3],
     bar_width: f32,
@@ -87,7 +89,21 @@ fn main() {
             DEFAULT_CONFIG.to_string()
         }
     };
-    let config: Config = toml::from_str(&config_str).unwrap();
+    let config: Config = match toml::from_str(&config_str) {
+        Ok(c) => c,
+        Err(e) => {
+            println!("invalid config: {}", e);
+            std::process::exit(1);
+        }
+    };
+    match check_config(config.clone()) {
+        Ok(_) => (),
+        Err(e) => {
+            eprintln!("invalid config: {}", e);
+            std::process::exit(1);
+        }
+    }
+
 
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
@@ -132,6 +148,7 @@ fn main() {
         config.visual.bottom_color,
         config.visual.bar_width,
         config.audio.volume_amplitude,
+        config.visual.visualisation,
     ));
 
     event_loop.run(move |event, _, control_flow| {
@@ -184,5 +201,25 @@ fn main() {
             _ => {}
         }
     });
+}
+
+fn check_config(config: Config) -> Result<(), String> {
+    let v = config.visual;
+    match v.visualisation.as_str() {
+        "Bars" => (),
+        "Strings" => (),
+        _ => return Err(String::from("error at visual section, invalid visualisation type. Possible types are: 'Bars' and 'Strings'")),
+    }
+    if v.buffering > 100 {
+        return Err(String::from("error at visual section, max value for buffering is 100"))
+    }
+    if v.max_frequency > 20000 || v.max_frequency < 100 {
+        return Err(String::from("error at visual section, max_frequency must be in between of 100 and 20.000"))
+    }
+    if v.low_frequency_threshold > v.max_frequency / 2 {
+        return Err(String::from("error at visual section, low_frequency_threshold must be lower than half of max_frequency"))
+    }
+
+    Ok(())
 }
 

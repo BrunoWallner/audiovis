@@ -116,7 +116,7 @@ fn scale_low_frequencies(
     // volume
     for i in 0..low_freq_len {
         let percentage: f32 = (low_freq_len - i) as f32 / low_freq_len as f32;
-        let calculated_volume: f32 = 1.0 - (volume_reduction * (percentage.powf(0.75) / 2.5));
+        let calculated_volume: f32 = 1.0 - (volume_reduction * (percentage.powf(0.85) / 2.5));
         buffer[i] *= calculated_volume;
     }
 }

@@ -11,14 +11,7 @@ pub fn init(bridge_sender: mpsc::Sender<bridge::Event>, m_freq: u32, pre_fft_win
     let host = cpal::default_host();
     let input_device = host.default_input_device().unwrap();
 
-    println!("Using input device: \"{}\"", input_device.name().unwrap());
-
     let config: cpal::StreamConfig = input_device.default_input_config().unwrap().into();
-
-    println!(
-        "Attempting to build both streams with f32 samples and `{:?}`.",
-        config
-    );
 
     let input_data_fn =
         move |data: &[f32], _: &cpal::InputCallbackInfo| match tx.send(data.to_vec()) {
