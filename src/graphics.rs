@@ -42,13 +42,13 @@ pub struct State {
     bridge_sender: mpsc::Sender<bridge::Event>,
     top_color: [f32; 3],
     bottom_color: [f32; 3],
-    bar_width: f32,
+    width: f32,
     volume_amplitude: f32,
     visualisation: String,
 }
 impl State {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, top_color: [f32; 3], bottom_color: [f32; 3], bar_width: f32, volume_amplitude: f32, visualisation: String) -> Self {
+    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, top_color: [f32; 3], bottom_color: [f32; 3], width: f32, volume_amplitude: f32, visualisation: String) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -175,7 +175,7 @@ impl State {
             bridge_sender,
             top_color,
             bottom_color,
-            bar_width,
+            width,
             volume_amplitude,
             visualisation,
         }
@@ -201,7 +201,7 @@ impl State {
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut indices: Vec<u16> = Vec::new();
         let bars = received.len();
-        let width: f32 = 1.0 / bars as f32 *  self.bar_width;
+        let width: f32 = 1.0 / bars as f32 *  self.width;
 
         match self.visualisation.as_str() {
             "Bars" => {

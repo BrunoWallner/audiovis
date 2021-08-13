@@ -1,11 +1,11 @@
 [visual]
 # valid arguments: ["Bars", "Strings"]
-visualisation = "Bars"
+visualisation = "Strings"
 
 bottom_color= [0.0, 0.0, 0.0]
-top_color = [0.2, 0.0, 0.0]
-bar_width = 1.0
-buffering = 2
+top_color = [1.0, 1.0, 1.0]
+width = 1.0
+buffering = 4
 smoothing_size = 4
 smoothing_amount = 1
 max_frequency = 15000

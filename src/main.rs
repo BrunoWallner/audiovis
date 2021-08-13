@@ -58,7 +58,7 @@ struct Visual {
     visualisation: String,
     bottom_color: [f32; 3],
     top_color: [f32; 3],
-    bar_width: f32,
+    width: f32,
     buffering: usize,
     smoothing_size: u32,
     smoothing_amount: u32,
@@ -146,7 +146,7 @@ fn main() {
         bridge_sender.clone(),
         config.visual.top_color,
         config.visual.bottom_color,
-        config.visual.bar_width,
+        config.visual.width,
         config.audio.volume_amplitude,
         config.visual.visualisation,
     ));
