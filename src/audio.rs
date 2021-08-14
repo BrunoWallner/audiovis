@@ -4,7 +4,11 @@ use std::thread;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-pub fn init(bridge_sender: mpsc::Sender<bridge::Event>, m_freq: u32, pre_fft_windowing: bool) {
+pub fn stream_input(
+    bridge_sender: mpsc::Sender<bridge::Event>,
+    m_freq: u32,
+    pre_fft_windowing: bool
+) {
     thread::spawn(move || {
         let (tx, rc) = mpsc::channel();
         instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing);
@@ -67,7 +71,10 @@ fn apodize(buffer: Vec<f32>) -> Vec<f32> {
     output_buffer
 }
 
-pub fn convert_buffer(input_buffer: Vec<f32>, m_freq: u32, pre_fft_windowing: bool) -> Vec<f32> {
+pub fn convert_buffer(
+    input_buffer: Vec<f32>,
+    m_freq: u32, pre_fft_windowing: bool
+) -> Vec<f32> {
     let mut input_buffer: Vec<f32> = input_buffer;
     if pre_fft_windowing {
         input_buffer = apodize(input_buffer)
@@ -90,7 +97,7 @@ pub fn convert_buffer(input_buffer: Vec<f32>, m_freq: u32, pre_fft_windowing: bo
     for i in 0..length as usize {
         output_buffer.push(buffer[i].norm())
     }
-    // *0.425 to cut off unwanted vector information that just mirrors itself
+    // *0.425 to cut off unwanted vector information that just mirrors itself and trims to exactly 20khz
     let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.455) as usize].to_vec();
 
     // max frequency

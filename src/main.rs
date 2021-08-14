@@ -3,6 +3,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
     window::Window,
+    window::Fullscreen,
 };
 
 use wgpu::util::DeviceExt;
@@ -12,40 +13,43 @@ use std::sync::mpsc;
 mod bridge;
 
 mod graphics;
-use graphics::*;
 
 mod audio;
+mod wgpu_abstraction;
+use wgpu_abstraction::State;
 
 use serde::{Deserialize};
 
 const DEFAULT_CONFIG: &str =
 "
 [visual]
-visualisation = 'Strings'
+visualisation = 'Bars'
 bottom_color= [0.0, 0.0, 0.0]
-top_color = [1.0, 1.0, 1.0]
+top_color = [1.0, 0.0, 0.0]
+max_frequency = 15000
 width = 1.0
-buffering = 3
 smoothing_size = 4
 smoothing_amount = 1
-max_frequency = 15000
-low_frequency_threshold = 100
-low_frequency_scale_doubling = 4
-low_frequency_smoothing_size = 15
-low_frequency_smoothing = 1
-low_frequency_fading = 2.0
-low_frequency_volume_reduction = true
 hide_cursor = false
-
+fullscreen = false
+window_always_on_top = false
+buffering = 2
+low_frequency_threshold = 100
+low_frequency_scale_doubling = 3
+low_frequency_smoothing_size = 5
+low_frequency_smoothing = 1
+low_frequency_fading = 2.125
+low_frequency_volume_reduction = true
 [audio]
 pre_fft_windowing = true
-volume_amplitude = 1.0
+volume_amplitude = 1.5
 volume_factoring = 0.6
 ";
 
 #[derive(Deserialize, Clone)]
 struct Config {
     visual: Visual,
+    processing: Processing,
     audio: Audio,
 }
 
@@ -54,20 +58,13 @@ struct Visual {
     visualisation: String,
     bottom_color: [f32; 3],
     top_color: [f32; 3],
-    width: f32,
-    buffering: usize,
     smoothing_size: u32,
     smoothing_amount: u32,
     max_frequency: u32,
-
-    low_frequency_threshold: u32,
-    low_frequency_scale_doubling: u8,
-    low_frequency_smoothing: u8,
-    low_frequency_smoothing_size: u32,
-    low_frequency_fading: f32,
-    low_frequency_volume_reduction: bool,
-
+    width: f32,
     hide_cursor: bool,
+    fullscreen: bool,
+    window_always_on_top: bool,
 }
 
 #[derive(Deserialize, Clone)]
@@ -77,7 +74,19 @@ struct Audio {
     volume_factoring: f32,
 }
 
+#[derive(Deserialize, Clone)]
+struct Processing {
+    buffering: usize,
+    low_frequency_threshold: u32,
+    low_frequency_scale_doubling: u8,
+    low_frequency_smoothing: u8,
+    low_frequency_smoothing_size: u32,
+    low_frequency_fading: f32,
+    low_frequency_volume_reduction: bool,
+}
+
 fn main() {
+    env_logger::init();
     // reads config
     let config_str = match std::fs::read_to_string("config.toml") {
         Ok(config) => config,
@@ -108,26 +117,25 @@ fn main() {
     bridge::init(
         bridge_receiver,
         sender_clone,
-        config.visual.buffering,
+        config.processing.buffering,
         config.visual.smoothing_size,
         config.visual.smoothing_amount,
         config.visual.max_frequency,
-        config.visual.low_frequency_threshold,
-        config.visual.low_frequency_scale_doubling,
-        config.visual.low_frequency_volume_reduction,
-        config.visual.low_frequency_smoothing,
-        config.visual.low_frequency_smoothing_size,
-        config.visual.low_frequency_fading,
+        config.processing.low_frequency_threshold,
+        config.processing.low_frequency_scale_doubling,
+        config.processing.low_frequency_volume_reduction,
+        config.processing.low_frequency_smoothing,
+        config.processing.low_frequency_smoothing_size,
+        config.processing.low_frequency_fading,
     );
     let config_clone = config.clone();
     let sender_clone = bridge_sender.clone();
-    audio::init(
+    audio::stream_input(
         sender_clone,
         config_clone.visual.max_frequency,
         config_clone.audio.pre_fft_windowing,
     );
 
-    env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(String::from("audiovis"))
@@ -147,6 +155,11 @@ fn main() {
         config.audio.volume_factoring,
     ));
 
+    if config.visual.fullscreen {
+        window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+    }
+    window.set_always_on_top(config.visual.window_always_on_top);
+
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::WindowEvent {
@@ -165,6 +178,18 @@ fn main() {
                                 virtual_keycode: Some(VirtualKeyCode::Escape),
                                 ..
                             } => *control_flow = ControlFlow::Exit,
+                            // F for fullscreen
+                            KeyboardInput {
+                                state: ElementState::Pressed,
+                                virtual_keycode: Some(VirtualKeyCode::F),
+                                ..
+                            } => {
+                                if !window.fullscreen().is_some() {
+                                    window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+                                } else {
+                                    window.set_fullscreen(None)
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -200,20 +225,20 @@ fn main() {
 }
 
 fn check_config(config: Config) -> Result<(), String> {
-    let v = config.visual;
-    match v.visualisation.as_str() {
+    let p = config.processing;
+    match config.visual.visualisation.as_str() {
         "Bars" => (),
         "Strings" => (),
         _ => return Err(String::from("error at visual section, invalid visualisation type. Possible types are: 'Bars' and 'Strings'")),
     }
-    if v.buffering > 100 {
-        return Err(String::from("error at visual section, max value for buffering is 100"))
+    if p.buffering > 100 {
+        return Err(String::from("error at processing section, max value for buffering is 100"))
     }
-    if v.max_frequency > 20000 || v.max_frequency < 100 {
-        return Err(String::from("error at visual section, max_frequency must be in between of 100 and 20.000"))
+    if config.visual.max_frequency > 20000 || config.visual.max_frequency < 100 {
+        return Err(String::from("error at processing section, max_frequency must be in between of 100 and 20.000"))
     }
-    if v.low_frequency_threshold > v.max_frequency / 2 {
-        return Err(String::from("error at visual section, low_frequency_threshold must be lower than half of max_frequency"))
+    if p.low_frequency_threshold > config.visual.max_frequency / 2 {
+        return Err(String::from("error at processing section, low_frequency_threshold must be lower than half of max_frequency"))
     }
 
     Ok(())

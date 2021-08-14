@@ -1,7 +1,10 @@
 # audiovis
 I tried to create a high quality classic audio visualiser with [cpal](https://github.com/RustAudio/cpal) as audio backend and [wgpu](https://github.com/gfx-rs/wgpu) as accelerated video frontend
 
-![Demo Video](media/demo.gif)
+## demo
+bar visualisation          |  string visualisation
+:-------------------------:|:-------------------------:
+![](/media/demo_bars.gif)      |  ![](/media/demo_strings.gif)
 
 ### Supported Platforms
 I primarily work on Linux so there will be the best support, but I try to keep portability in mind
