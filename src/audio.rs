@@ -5,27 +5,31 @@ use std::thread;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 pub fn init(bridge_sender: mpsc::Sender<bridge::Event>, m_freq: u32, pre_fft_windowing: bool) {
-    let (tx, rc) = mpsc::channel();
-    instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing);
+    thread::spawn(move || {
+        let (tx, rc) = mpsc::channel();
+        instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing);
 
-    let host = cpal::default_host();
-    let input_device = host.default_input_device().unwrap();
+        let host = cpal::default_host();
+        let input_device = host.default_input_device().unwrap();
 
-    let config: cpal::StreamConfig = input_device.default_input_config().unwrap().into();
+        println!("using input devices: {}", input_device.name().unwrap());
 
-    let input_data_fn =
-        move |data: &[f32], _: &cpal::InputCallbackInfo| match tx.send(data.to_vec()) {
-            Ok(_) => (),
-            Err(e) => eprintln!("failed to send audio data to bridge, {}", e),
-        };
+        let config: cpal::StreamConfig = input_device.default_input_config().unwrap().into();
 
-    let input_stream = input_device
-        .build_input_stream(&config, input_data_fn, err_fn)
-        .unwrap();
+        let input_data_fn =
+            move |data: &[f32], _: &cpal::InputCallbackInfo| match tx.send(data.to_vec()) {
+                Ok(_) => (),
+                Err(e) => eprintln!("failed to send audio data to bridge, {}", e),
+            };
 
-    input_stream.play().unwrap();
+        let input_stream = input_device
+            .build_input_stream(&config, input_data_fn, err_fn)
+            .unwrap();
 
-    loop {}
+        input_stream.play().unwrap();
+
+        loop {}
+    });
 }
 
 fn err_fn(err: cpal::StreamError) {

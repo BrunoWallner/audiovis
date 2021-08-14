@@ -8,7 +8,6 @@ use winit::{
 use wgpu::util::DeviceExt;
 
 use std::sync::mpsc;
-use std::thread;
 
 mod bridge;
 
@@ -22,29 +21,26 @@ use serde::{Deserialize};
 const DEFAULT_CONFIG: &str =
 "
 [visual]
-visualisation = 'Bars'
-
+visualisation = 'Strings'
 bottom_color= [0.0, 0.0, 0.0]
-top_color = [0.2, 0.0, 0.0]
-bar_width = 1.0
-buffering = 2
+top_color = [1.0, 1.0, 1.0]
+width = 1.0
+buffering = 3
 smoothing_size = 4
 smoothing_amount = 1
 max_frequency = 15000
-
 low_frequency_threshold = 100
-low_frequency_scale_doubling = 3
-low_frequency_smoothing_size = 8
+low_frequency_scale_doubling = 4
+low_frequency_smoothing_size = 15
 low_frequency_smoothing = 1
-
 low_frequency_fading = 2.0
-low_frequency_volume_reduction = 2.0
-
+low_frequency_volume_reduction = true
 hide_cursor = false
 
 [audio]
 pre_fft_windowing = true
 volume_amplitude = 1.0
+volume_factoring = 0.6
 ";
 
 #[derive(Deserialize, Clone)]
@@ -69,7 +65,7 @@ struct Visual {
     low_frequency_smoothing: u8,
     low_frequency_smoothing_size: u32,
     low_frequency_fading: f32,
-    low_frequency_volume_reduction: f32,
+    low_frequency_volume_reduction: bool,
 
     hide_cursor: bool,
 }
@@ -78,6 +74,7 @@ struct Visual {
 struct Audio {
     pre_fft_windowing: bool,
     volume_amplitude: f32,
+    volume_factoring: f32,
 }
 
 fn main() {
@@ -124,13 +121,11 @@ fn main() {
     );
     let config_clone = config.clone();
     let sender_clone = bridge_sender.clone();
-    thread::spawn(move|| {
-        audio::init(
-            sender_clone,
-            config_clone.visual.max_frequency,
-            config_clone.audio.pre_fft_windowing,
-        )
-    });
+    audio::init(
+        sender_clone,
+        config_clone.visual.max_frequency,
+        config_clone.audio.pre_fft_windowing,
+    );
 
     env_logger::init();
     let event_loop = EventLoop::new();
@@ -149,6 +144,7 @@ fn main() {
         config.visual.width,
         config.audio.volume_amplitude,
         config.visual.visualisation,
+        config.audio.volume_factoring,
     ));
 
     event_loop.run(move |event, _, control_flow| {

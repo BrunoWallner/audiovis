@@ -45,10 +45,11 @@ pub struct State {
     width: f32,
     volume_amplitude: f32,
     visualisation: String,
+    volume_factoring: f32,
 }
 impl State {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, top_color: [f32; 3], bottom_color: [f32; 3], width: f32, volume_amplitude: f32, visualisation: String) -> Self {
+    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, top_color: [f32; 3], bottom_color: [f32; 3], width: f32, volume_amplitude: f32, visualisation: String, volume_factoring: f32) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -132,30 +133,22 @@ impl State {
             },
         });
 
-        let vertices: &[Vertex] = &[
-            Vertex { position: [-0.25, -0.5, 0.0], color: [0.1, 0.0, 0.0] },
-            Vertex { position: [-0.25, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
-            Vertex { position: [0.25, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
-            Vertex { position: [0.25, -0.5, 0.0], color: [0.1, 0.0, 0.0] },
-        ];
+        let vertices: Vec<Vertex> = Vec::new();
 
         // must be align to 4 bytes
-        let indices: &[u16] = &[
-            2, 1, 0,
-            2, 0, 3,
-        ];
+        let indices: Vec<u16> = Vec::new();
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(vertices),
+                contents: bytemuck::cast_slice(&vertices),
                 usage: wgpu::BufferUsage::VERTEX,
             }
         );
         let index_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(indices),
+                contents: bytemuck::cast_slice(&indices),
                 usage: wgpu::BufferUsage::INDEX,
             }
         );
@@ -178,6 +171,7 @@ impl State {
             width,
             volume_amplitude,
             visualisation,
+            volume_factoring,
         }
     }
 
@@ -198,6 +192,10 @@ impl State {
 
         let received = rc.recv().unwrap();
 
+        if received.len() <= 0 {
+            return
+        }
+
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut indices: Vec<u16> = Vec::new();
         let bars = received.len();
@@ -207,11 +205,13 @@ impl State {
             "Bars" => {
                 for i in 0..received.len() {
                     let x = (i as f32 - bars as f32 / 2.0) / (bars as f32 / 2.0) + width;
-                    let y: f32 = self.volume_amplitude * ( (received[i] as f32).powf(0.75) * 0.05 ) - 1.0;
+                    let y: f32 = self.volume_amplitude * ( (received[i] as f32).powf(self.volume_factoring) * 0.05 ) - 1.0;
+
+                    let top_color: [f32; 3] = [self.top_color[0] * (y + 1.0), self.top_color[1] * (y + 1.0), self.top_color[2] * (y + 1.0), ];
 
                     vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color: self.bottom_color });
-                    vertices.push(Vertex { position: [x - width,  y, 0.0],   color: self.top_color });
-                    vertices.push(Vertex { position: [x + width,  y, 0.0],   color: self.top_color });
+                    vertices.push(Vertex { position: [x - width,  y, 0.0],   color: top_color });
+                    vertices.push(Vertex { position: [x + width,  y, 0.0],   color: top_color });
                     vertices.push(Vertex { position: [x + width,  -1.0, 0.0],   color: self.bottom_color });
 
                     let i = vertices.len() as u16 - 4;
@@ -229,27 +229,34 @@ impl State {
                 for i in 0..received.len() - 1 {
                     let x1 = (i as f32 - bars as f32 / 2.0) / (bars as f32 / 2.0);
                     let x2 = ((i + 1) as f32 - bars as f32 / 2.0) / (bars as f32 / 2.0);
-                    let y1: f32 = self.volume_amplitude * ( (received[i] as f32).powf(0.75) * 0.05 ) - 1.0;
-                    let y2: f32 = self.volume_amplitude * ( (received[i + 1] as f32).powf(0.75) * 0.05 ) - 1.0;
+                    let y1: f32 = self.volume_amplitude * ( (received[i] as f32).powf(self.volume_factoring) * 0.05 ) - 1.0;
+                    let y2: f32 = self.volume_amplitude * ( (received[i + 1] as f32).powf(self.volume_factoring) * 0.05 ) - 1.0;
 
-                    let w = width / 2.0;
+                    let w = width * 1.125;
 
+                    let top_color1: [f32; 3] = [self.top_color[0] * (y1 + 1.0), self.top_color[1] * (y1 + 1.0), self.top_color[2] * (y1 + 1.0)];
+                    let top_color2: [f32; 3] = [self.top_color[0] * (y2 + 1.0), self.top_color[1] * (y2 + 1.0), self.top_color[2] * (y2 + 1.0)];
+
+                    // unclean code but works and should not impact performance
                     if y1 < y2 {
-
                         if previos_fall {
-                            vertices.push(Vertex { position: [x1,  y1, 0.0],   color: self.top_color });
-                            vertices.push(Vertex { position: [x1 - w,  y1 - w, 0.0],   color: self.top_color });
-                            vertices.push(Vertex { position: [x1 + w,  y1 - w, 0.0],   color: self.top_color });
+                            vertices.push(Vertex { position: [x1,  y1, 0.0],   color: top_color1 });
+                            vertices.push(Vertex { position: [x1 - w,  y1 - w, 0.0],   color: top_color1 });
+                            vertices.push(Vertex { position: [x1 + w,  y1 - w, 0.0],   color: top_color1 });
+                            vertices.push(Vertex { position: [x1,  y1 - w*2.0, 0.0],   color: top_color1 });
 
-                            let i = vertices.len() as u16 - 3;
+                            let i = vertices.len() as u16 - 4;
                             indices.push(i + 0);
                             indices.push(i + 1);
                             indices.push(i + 2);
+                            indices.push(i + 3);
+                            indices.push(i + 2);
+                            indices.push(i + 1);
                         }
-                        vertices.push(Vertex { position: [x1 + w,  y1 - w, 0.0],   color: self.top_color });
-                        vertices.push(Vertex { position: [x1 - w,  y1 + w, 0.0],   color: self.top_color });
-                        vertices.push(Vertex { position: [x2 - w,  y2 + w, 0.0],   color: self.top_color });
-                        vertices.push(Vertex { position: [x2 + w,  y2 - w, 0.0],   color: self.top_color });
+                        vertices.push(Vertex { position: [x1 + w,  y1 - w, 0.0],   color: top_color1 });
+                        vertices.push(Vertex { position: [x1 - w,  y1 + w, 0.0],   color: top_color1 });
+                        vertices.push(Vertex { position: [x2 - w,  y2 + w, 0.0],   color: top_color2 });
+                        vertices.push(Vertex { position: [x2 + w,  y2 - w, 0.0],   color: top_color2 });
 
                         let i = vertices.len() as u16 - 4;
                         indices.push(i + 2);
@@ -264,19 +271,23 @@ impl State {
                     }
                     if y1 > y2 {
                         if previos_rise {
-                            vertices.push(Vertex { position: [x1,  y1, 0.0],   color: self.top_color });
-                            vertices.push(Vertex { position: [x1 + w,  y1 + w, 0.0],   color: self.top_color });
-                            vertices.push(Vertex { position: [x1 - w,  y1 + w, 0.0],   color: self.top_color });
+                            vertices.push(Vertex { position: [x1,  y1, 0.0],   color: top_color1 });
+                            vertices.push(Vertex { position: [x1 + w,  y1 + w, 0.0],   color: top_color1 });
+                            vertices.push(Vertex { position: [x1 - w,  y1 + w, 0.0],   color: top_color1 });
+                            vertices.push(Vertex { position: [x1,  y1 + w*2.0, 0.0],   color: top_color1 });
 
-                            let i = vertices.len() as u16 - 3;
+                            let i = vertices.len() as u16 - 4;
                             indices.push(i + 0);
                             indices.push(i + 1);
                             indices.push(i + 2);
+                            indices.push(i + 3);
+                            indices.push(i + 2);
+                            indices.push(i + 1);
                         }
-                        vertices.push(Vertex { position: [x1 - w,  y1 - w, 0.0],   color: self.top_color });
-                        vertices.push(Vertex { position: [x1 + w,  y1 + w, 0.0],   color: self.top_color });
-                        vertices.push(Vertex { position: [x2 + w,  y2 + w, 0.0],   color: self.top_color });
-                        vertices.push(Vertex { position: [x2 - w,  y2 - w, 0.0],   color: self.top_color });
+                        vertices.push(Vertex { position: [x1 - w,  y1 - w, 0.0],   color: top_color1 });
+                        vertices.push(Vertex { position: [x1 + w,  y1 + w, 0.0],   color: top_color1 });
+                        vertices.push(Vertex { position: [x2 + w,  y2 + w, 0.0],   color: top_color2 });
+                        vertices.push(Vertex { position: [x2 - w,  y2 - w, 0.0],   color: top_color2 });
 
                         let i = vertices.len() as u16 - 4;
                         indices.push(i + 2);
@@ -287,6 +298,23 @@ impl State {
                         indices.push(i + 3);
 
                         previos_fall = true;
+                        previos_rise = false;
+                    }
+                    if y1 == y2 {
+                        vertices.push(Vertex { position: [x1,  y1 - w, 0.0],   color: top_color1 });
+                        vertices.push(Vertex { position: [x1,  y1 + w, 0.0],   color: top_color1 });
+                        vertices.push(Vertex { position: [x2,  y2 + w, 0.0],   color: top_color2 });
+                        vertices.push(Vertex { position: [x2,  y2 - w, 0.0],   color: top_color2 });
+
+                        let i = vertices.len() as u16 - 4;
+                        indices.push(i + 2);
+                        indices.push(i + 1);
+                        indices.push(i + 0);
+                        indices.push(i + 2);
+                        indices.push(i + 0);
+                        indices.push(i + 3);
+
+                        previos_fall = false;
                         previos_rise = false;
                     }
                 }

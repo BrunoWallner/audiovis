@@ -11,7 +11,7 @@ Feature                 |   Windows 10  |   Linux   |   macOS   |
 DefaultAudioInputStream | Supported     | Supported | ?         |
 DesktopAudioInputStream | -             | WiP       | -         |
 BarVisualisation        | Supported     | Supported | Supported |
-StringVisualisation     | WiP           | WiP       | WiP       |
+StringVisualisation     | Supported     | Supported | Supported |
 
 As you can see I could not figure out how to capture the Desktop Audio as Default Input-stream on any Platform,
 

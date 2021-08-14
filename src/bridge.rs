@@ -16,7 +16,7 @@ pub fn init(
     frequency: u32,
     low_frequency_threshold: u32,
     l_freq_scale_doub: u8,
-    l_freq_volume_reduction: f32,
+    l_freq_volume_reduction: bool,
     l_freq_smoothing: u8,
     l_freq_smoothing_size: u32,
     l_freq_fading: f32,
@@ -75,7 +75,7 @@ fn scale_low_frequencies(
     l_freq_scale: u8,
     frequency: u32,
     low_frequency_threshold: u32,
-    volume_reduction: f32,
+    volume_reduction: bool,
     smoothing: u8,
     smooth_size: u32,
     fading: f32,
@@ -114,11 +114,20 @@ fn scale_low_frequencies(
     }
 
     // volume
-    for i in 0..low_freq_len {
-        let percentage: f32 = (low_freq_len - i) as f32 / low_freq_len as f32;
-        let calculated_volume: f32 = 1.0 - (volume_reduction * (percentage.powf(0.85) / 2.5));
-        buffer[i] *= calculated_volume;
+    if volume_reduction {
+        for i in 0..low_freq_len {
+            let percentage: f32 = (low_freq_len - i) as f32 / low_freq_len as f32;
+            let calculated_volume: f32 = 1.0 - percentage * 0.85;
+            buffer[i] *= calculated_volume;
+        }
     }
+
+    /* volume
+    for i in 0..low_freq_len {
+        let percentage: f32 = i as f32 / low_freq_len as f32;
+        buffer[i] *= percentage / 1.025;
+    }
+    */
 }
 
 fn smooth_buffer(

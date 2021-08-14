@@ -1,26 +1,27 @@
 [visual]
 # valid arguments: ["Bars", "Strings"]
-visualisation = "Strings"
+visualisation = "Bars"
 
 bottom_color= [0.0, 0.0, 0.0]
-top_color = [1.0, 1.0, 1.0]
+top_color = [1.0, 0.0, 0.0]
 width = 1.0
-buffering = 4
+buffering = 3
 smoothing_size = 4
 smoothing_amount = 1
 max_frequency = 15000
 
 low_frequency_threshold = 100
-low_frequency_scale_doubling = 3
-low_frequency_smoothing_size = 8
+low_frequency_scale_doubling = 4
+low_frequency_smoothing_size = 15
 low_frequency_smoothing = 1
 
 # the further away from 1.0 the more fading, this could distort frequency threshold
 low_frequency_fading = 2.0
-low_frequency_volume_reduction = 2.0
+low_frequency_volume_reduction = true
 
 hide_cursor = false
 
 [audio]
 pre_fft_windowing = true
-volume_amplitude = 1.0
+volume_amplitude = 1.5
+volume_factoring = 0.6
