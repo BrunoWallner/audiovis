@@ -196,7 +196,7 @@ impl State {
             return
         }
 
-        let (vertices, indices) = graphics::create_mesh(
+        let (vertices, indices) = buffer_to_vertices::create_mesh(
             received,
             self.visualisation.clone(),
             self.width,

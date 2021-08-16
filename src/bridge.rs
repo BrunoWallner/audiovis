@@ -88,10 +88,12 @@ fn scale_low_frequencies(
         let low_freq_len: usize = (buffer_len as f32 * percentage) as usize + scaled;
         let mut position: usize = 0;
         for _ in 0..=(low_freq_len as f32 * fading) as u32 {
-            let value: f32 = (buffer[position] + buffer[position + 1]) / 2.0;
-            buffer.insert(position + 1, value);
-            position += 2;
-            scaled += 1;
+            if position < buffer.len() - 1 {
+                let value: f32 = (buffer[position] + buffer[position + 1]) / 2.0;
+                buffer.insert(position + 1, value);
+                position += 2;
+                scaled += 1;
+            }
         }
     }
 

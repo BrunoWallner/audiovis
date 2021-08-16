@@ -12,7 +12,7 @@ use std::sync::mpsc;
 
 mod bridge;
 
-mod graphics;
+mod buffer_to_vertices;
 
 mod audio;
 mod wgpu_abstraction;
@@ -23,27 +23,28 @@ use serde::{Deserialize};
 const DEFAULT_CONFIG: &str =
 "
 [visual]
-visualisation = 'Bars'
+visualisation = 'Strings'
 bottom_color= [0.0, 0.0, 0.0]
 top_color = [1.0, 0.0, 0.0]
-max_frequency = 15000
+max_frequency = 10000
 width = 1.0
-smoothing_size = 4
-smoothing_amount = 1
+smoothing_size = 5
+smoothing_amount = 2
 hide_cursor = false
 fullscreen = false
 window_always_on_top = false
-buffering = 2
+[processing]
+buffering = 3
 low_frequency_threshold = 100
-low_frequency_scale_doubling = 3
-low_frequency_smoothing_size = 5
-low_frequency_smoothing = 1
-low_frequency_fading = 2.125
+low_frequency_scale_doubling = 4
+low_frequency_smoothing_size = 7
+low_frequency_smoothing = 2
+low_frequency_fading = 2.25
 low_frequency_volume_reduction = true
 [audio]
 pre_fft_windowing = true
 volume_amplitude = 1.5
-volume_factoring = 0.6
+volume_factoring = 0.7
 ";
 
 #[derive(Deserialize, Clone)]
