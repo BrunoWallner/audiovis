@@ -4,7 +4,7 @@ I tried to create a high quality classic audio visualiser with [cpal](https://gi
 ## demo
 bar visualisation          |  string visualisation
 :-------------------------:|:-------------------------:
-![](/media/demo_bars.gif)      |  ![](/media/demo_strings.gif)
+![](/media/demo_bars.gif)  |  ![](/media/demo_strings.gif)
 
 ### Supported Platforms
 I primarily work on Linux so there will be the best support, but I try to keep portability in mind
