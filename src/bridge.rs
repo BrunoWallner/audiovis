@@ -80,6 +80,17 @@ fn scale_low_frequencies(
     smooth_size: u32,
     fading: f32,
 ) {
+
+    // volume
+    let low_freq_len = buffer.len() / 15;
+    if volume_reduction {
+        for i in 0..low_freq_len {
+            let percentage: f32 = (low_freq_len - i) as f32 / low_freq_len as f32;
+            let calculated_volume: f32 = 1.0 - percentage * 0.85;
+            buffer[i] *= calculated_volume;
+        }
+    }
+
     let percentage: f32 = low_frequency_threshold as f32 / frequency as f32;
     let buffer_len = buffer.len();
 
@@ -95,41 +106,24 @@ fn scale_low_frequencies(
                 scaled += 1;
             }
         }
-    }
-
-    let low_freq_len: usize = (buffer_len as f32 * percentage) as usize + scaled;
-
-    //smoothing
-    for _ in 0..smoothing {
-        for j in 0..low_freq_len {
-            let mut y: f32 = 0.0;
-            let mut smoothed: f32 = 0.0;
-            for x in 0..smooth_size as usize {
-                let place: usize = j + x;
-                if place <= low_freq_len {
-                    y += buffer[place as usize];
-                    smoothed += 1.0;
+        //smoothing
+        let low_freq_len: usize = (buffer_len as f32 * percentage) as usize + scaled;
+        for _ in 0..smoothing {
+            for j in 0..low_freq_len {
+                let mut y: f32 = 0.0;
+                let mut smoothed: f32 = 0.0;
+                for x in 0..smooth_size {
+                    let place1: usize = j + x as usize;
+                    let amount: f32 = (smooth_size / (x + 1)) as f32;
+                    if place1 <= low_freq_len {
+                        y += buffer[place1] * amount;
+                        smoothed += amount;
+                    }
                 }
+                buffer[j] = y / smoothed;
             }
-            buffer[j] = y / smoothed;
         }
     }
-
-    // volume
-    if volume_reduction {
-        for i in 0..low_freq_len {
-            let percentage: f32 = (low_freq_len - i) as f32 / low_freq_len as f32;
-            let calculated_volume: f32 = 1.0 - percentage * 0.85;
-            buffer[i] *= calculated_volume;
-        }
-    }
-
-    /* volume
-    for i in 0..low_freq_len {
-        let percentage: f32 = i as f32 / low_freq_len as f32;
-        buffer[i] *= percentage / 1.025;
-    }
-    */
 }
 
 fn smooth_buffer(

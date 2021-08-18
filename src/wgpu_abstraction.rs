@@ -195,9 +195,12 @@ impl State {
         if received.len() <= 0 {
             return
         }
+        let mut vertices: Vec<Vertex> = Vec::new();
+        let mut indices: Vec<u16> = Vec::new();
 
-        let (vertices, indices) = buffer_to_vertices::create_mesh(
-            received,
+        // visualisation of buffer
+        let (mut v, mut i) = mesh::convert_to_buffer(
+            received.clone(),
             self.visualisation.clone(),
             self.width,
             self.volume_amplitude,
@@ -205,6 +208,20 @@ impl State {
             self.top_color,
             self.bottom_color,
         );
+        vertices.append(&mut v);
+        indices.append(&mut i);
+
+
+        // visualisation of text
+        let(_size, (mut v, mut i)) = mesh::convert_text(
+            String::from("HALAL, BUMSA\nBIMA"),
+            0.15,
+            [50.0 / self.size.width as f32, 50.0 / self.size.height as f32],
+            [1.0, 1.0, 1.0],
+            vertices.len() as u16,
+        );
+        vertices.append(&mut v);
+        indices.append(&mut i);
 
         self.num_indices = indices.len() as u32;
 

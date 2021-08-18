@@ -12,7 +12,7 @@ use std::sync::mpsc;
 
 mod bridge;
 
-mod buffer_to_vertices;
+mod mesh;
 
 mod audio;
 mod wgpu_abstraction;
