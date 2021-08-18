@@ -98,7 +98,15 @@ pub fn convert_buffer(
         output_buffer.push(buffer[i].norm())
     }
     // *0.425 to cut off unwanted vector information that just mirrors itself and trims to exactly 20khz
-    let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.455) as usize].to_vec();
+    let mut output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.455) as usize].to_vec();
+
+    // volume compensation
+    let buffer_len = output_buffer.len();
+    for i in 0..buffer_len {
+        let percentage: f32 = i as f32 / buffer_len as f32;
+        let amount: f32 = 0.1 / percentage.powf(0.75);
+        output_buffer[i] /= amount;
+    }
 
     // max frequency
     let percentage: f32 = m_freq as f32 / 20000.0;

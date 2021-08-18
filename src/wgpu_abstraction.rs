@@ -212,7 +212,7 @@ impl State {
         indices.append(&mut i);
 
 
-        // visualisation of text
+        /* visualisation of text
         let(_size, (mut v, mut i)) = mesh::convert_text(
             String::from("HALAL, BUMSA\nBIMA"),
             0.15,
@@ -222,6 +222,7 @@ impl State {
         );
         vertices.append(&mut v);
         indices.append(&mut i);
+        */
 
         self.num_indices = indices.len() as u32;
 
