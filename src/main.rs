@@ -41,6 +41,7 @@ low_frequency_scale_doubling = 5
 low_frequency_smoothing_size = 5
 low_frequency_smoothing = 1
 low_frequency_fading = 2.5
+low_high_frequency_ration = 0.55
 [audio]
 pre_fft_windowing = true
 volume_amplitude = 2.0
@@ -83,6 +84,7 @@ struct Processing {
     low_frequency_smoothing: u8,
     low_frequency_smoothing_size: u32,
     low_frequency_fading: f32,
+    low_high_frequency_ration: f32,
 }
 
 fn main() {
@@ -133,6 +135,7 @@ fn main() {
         sender_clone,
         config_clone.visual.max_frequency,
         config_clone.audio.pre_fft_windowing,
+        config_clone.processing.low_high_frequency_ration,
     );
 
     let event_loop = EventLoop::new();

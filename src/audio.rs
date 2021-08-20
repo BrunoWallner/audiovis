@@ -7,11 +7,12 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 pub fn stream_input(
     bridge_sender: mpsc::Sender<bridge::Event>,
     m_freq: u32,
-    pre_fft_windowing: bool
+    pre_fft_windowing: bool,
+    low_high_freq_ration: f32,
 ) {
     thread::spawn(move || {
         let (tx, rc) = mpsc::channel();
-        instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing);
+        instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing, low_high_freq_ration);
 
         let host = cpal::default_host();
         let input_device = host.default_input_device().unwrap();
@@ -45,13 +46,14 @@ fn instruction_receiver(
     sender: mpsc::Sender<bridge::Event>,
     m_freq: u32,
     pre_fft_windowing: bool,
+    low_high_freq_ration: f32,
 ) {
     thread::spawn(move || loop {
         match receiver.recv() {
             Ok(b) => {
                 let sender_clone = sender.clone();
                 thread::spawn(move || {
-                    let buffer: Vec<f32> = convert_buffer(b.to_vec(), m_freq, pre_fft_windowing);
+                    let buffer: Vec<f32> = convert_buffer(b.to_vec(), m_freq, pre_fft_windowing, low_high_freq_ration);
                     sender_clone.send(bridge::Event::Push(buffer)).unwrap();
                 });
             }
@@ -73,7 +75,8 @@ fn apodize(buffer: Vec<f32>) -> Vec<f32> {
 
 pub fn convert_buffer(
     input_buffer: Vec<f32>,
-    m_freq: u32, pre_fft_windowing: bool
+    m_freq: u32, pre_fft_windowing: bool,
+    low_high_freq_ration: f32,
 ) -> Vec<f32> {
     let mut input_buffer: Vec<f32> = input_buffer;
     if pre_fft_windowing {
@@ -104,7 +107,7 @@ pub fn convert_buffer(
     let buffer_len = output_buffer.len();
     for i in 0..buffer_len {
         let percentage: f32 = i as f32 / buffer_len as f32;
-        let amount: f32 = 0.1 / percentage.powf(0.75);
+        let amount: f32 = 0.1 / percentage.powf(low_high_freq_ration);
         output_buffer[i] /= amount;
     }
 
