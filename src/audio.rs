@@ -1,35 +1,82 @@
 use crate::*;
 use rustfft::{num_complex::Complex, FftPlanner};
 use std::thread;
+use std::time::Duration;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
+#[derive(Debug)]
+pub struct AudioDevice {
+    pub name: String,
+    pub host: String,
+}
+
+pub fn enumerate_devices() -> Result<Vec<AudioDevice>, String> {
+    let mut buffer: Vec<AudioDevice> = Vec::new();
+    let available_hosts = cpal::available_hosts();
+    for host_id in available_hosts {
+        let host = match cpal::host_from_id(host_id) {
+            Ok(h) => h,
+            Err(_) => return Err(String::from("host is unavailable")),
+        };
+        let devices = match host.devices() {
+            Ok(d) => d,
+            Err(_) => return Err(String::from("devices are unavailable")),
+        };
+        for (_, device) in devices.enumerate() {
+            let name: String = match device.name() {
+                Ok(n) => n,
+                Err(_) => String::from("INVALID_NAME"),
+            };
+            buffer.push(AudioDevice {
+                name,
+                host: String::from(host_id.name()),
+            });
+        }
+    }
+    Ok(buffer)
+}
+
 pub fn stream_input(
+    input_device: String,
     bridge_sender: mpsc::Sender<bridge::Event>,
     m_freq: u32,
     pre_fft_windowing: bool,
     low_high_freq_ration: f32,
 ) {
     thread::spawn(move || {
-        let (tx, rc) = mpsc::channel();
-        instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing, low_high_freq_ration);
-
         let host = cpal::default_host();
-        let input_device = host.default_input_device().unwrap();
+        let device = match if input_device == "default" {
+            host.default_input_device()
+        } else {
+            host.input_devices().unwrap()
+                .find(|x| x.name().map(|y| y == input_device).unwrap_or(false))
+        } {
+            Some(d) => d,
+            None => {
+                println!("could not find input device: {}", input_device);
+                std::process::exit(1);
+            }
+        };
 
-        println!("using input devices: {}", input_device.name().unwrap());
+        println!("using input devices: {}", device.name().unwrap());
 
-        let config: cpal::StreamConfig = input_device.default_input_config().unwrap().into();
+        let config: cpal::StreamConfig = device.default_input_config().unwrap().into();
+
+        let (tx, rc) = mpsc::channel();
 
         let input_data_fn =
             move |data: &[f32], _: &cpal::InputCallbackInfo| match tx.send(data.to_vec()) {
                 Ok(_) => (),
-                Err(e) => eprintln!("failed to send audio data to bridge, {}", e),
+                Err(_) => thread::sleep(Duration::from_millis(100)),
             };
 
-        let input_stream = input_device
+        let input_stream = device
             .build_input_stream(&config, input_data_fn, err_fn)
             .unwrap();
+
+
+        instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing, low_high_freq_ration);
 
         input_stream.play().unwrap();
 
@@ -57,7 +104,7 @@ fn instruction_receiver(
                     sender_clone.send(bridge::Event::Push(buffer)).unwrap();
                 });
             }
-            Err(e) => eprintln!("failed to send audio data to bridge, {}", e),
+            Err(_) => thread::sleep(Duration::from_millis(500)),
         }
     });
 }

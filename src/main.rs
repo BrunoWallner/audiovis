@@ -14,104 +14,75 @@ mod bridge;
 
 mod mesh;
 
+mod config;
 mod audio;
 mod wgpu_abstraction;
 use wgpu_abstraction::State;
 
-use serde::{Deserialize};
+use clap::{Arg, App};
 
-const DEFAULT_CONFIG: &str =
-"
-[visual]
-visualisation = 'Bars'
-bottom_color= [0.0, 0.0, 0.0]
-top_color = [1.0, 0.0, 0.0]
-max_frequency = 15000
-width = 1.0
-smoothing_size = 2
-smoothing_amount = 1
-hide_cursor = false
-# pressing F also toggles fullscreen
-fullscreen = false
-window_always_on_top = false
-[processing]
-buffering = 3
-low_frequency_threshold = 50
-low_frequency_scale_doubling = 5
-low_frequency_smoothing_size = 5
-low_frequency_smoothing = 1
-low_frequency_fading = 2.5
-low_high_frequency_ration = 0.55
-[audio]
-pre_fft_windowing = true
-volume_amplitude = 2.0
-volume_factoring = 0.5
-";
-
-#[derive(Deserialize, Clone)]
-struct Config {
-    visual: Visual,
-    processing: Processing,
-    audio: Audio,
-}
-
-#[derive(Deserialize, Clone)]
-struct Visual {
-    visualisation: String,
-    bottom_color: [f32; 3],
-    top_color: [f32; 3],
-    smoothing_size: u32,
-    smoothing_amount: u32,
-    max_frequency: u32,
-    width: f32,
-    hide_cursor: bool,
-    fullscreen: bool,
-    window_always_on_top: bool,
-}
-
-#[derive(Deserialize, Clone)]
-struct Audio {
-    pre_fft_windowing: bool,
-    volume_amplitude: f32,
-    volume_factoring: f32,
-}
-
-#[derive(Deserialize, Clone)]
-struct Processing {
-    buffering: usize,
-    low_frequency_threshold: u32,
-    low_frequency_scale_doubling: u8,
-    low_frequency_smoothing: u8,
-    low_frequency_smoothing_size: u32,
-    low_frequency_fading: f32,
-    low_high_frequency_ration: f32,
-}
 
 fn main() {
-    env_logger::init();
-    // reads config
-    let config_str = match std::fs::read_to_string("config.toml") {
-        Ok(config) => config,
-        Err(e) => {
-            println!("could not find config.toml: {}, falling back to default config", e);
-            DEFAULT_CONFIG.to_string()
+    //env_logger::init();
+
+    let matches = App::new("audiovis")
+        .version("0.1.0")
+        .author("Luca Biendl <b.lucab1211@gmail.com>")
+        .about("tool to visualize audio")
+        .arg(Arg::with_name("config")
+                    .short("c")
+                    .long("config")
+                    .takes_value(true)
+                    .help("use custom configuration"))
+
+        .arg(Arg::with_name("input_device")
+                    .short("i")
+                    .long("input-device")
+                    .takes_value(true)
+                    .help("use another input device"))
+
+        .arg(Arg::with_name("generate_default_config")
+                    .short("g")
+                    .long("generate-default-config")
+                    .takes_value(false)
+                    .help("generates default configuration"))
+
+        .arg(Arg::with_name("list_devices")
+                    .short("l")
+                    .long("list-devices")
+                    .takes_value(false)
+                    .help("enumerate and list through all available audio devices"))
+        .get_matches();
+
+    let config_path: &str = matches.value_of("config").unwrap_or("default");
+    let input_device: String = String::from(matches.value_of("input_device").unwrap_or("default"));
+
+    if matches.is_present("generate_default_config") {
+        config::generate_default_config();
+        println!("generated default config");
+        std::process::exit(0);
+    }
+    if matches.is_present("list_devices") {
+        let devices = match audio::enumerate_devices() {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        };
+        for device in devices.iter() {
+            println!("[{}]\t{}", device.host, device.name);
         }
-    };
-    let config: Config = match toml::from_str(&config_str) {
-        Ok(c) => c,
-        Err(e) => {
-            println!("invalid config: {}", e);
-            std::process::exit(1);
-        }
-    };
-    match check_config(config.clone()) {
-        Ok(_) => (),
-        Err(e) => {
-            eprintln!("invalid config: {}", e);
-            std::process::exit(1);
-        }
+        std::process::exit(0);
     }
 
+    let config = match config::get_config(config_path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+            }
+    };
 
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
@@ -132,10 +103,11 @@ fn main() {
     let config_clone = config.clone();
     let sender_clone = bridge_sender.clone();
     audio::stream_input(
+        input_device,
         sender_clone,
         config_clone.visual.max_frequency,
         config_clone.audio.pre_fft_windowing,
-        config_clone.processing.low_high_frequency_ration,
+        config_clone.processing.volume_compensation,
     );
 
     let event_loop = EventLoop::new();
@@ -224,25 +196,5 @@ fn main() {
             _ => {}
         }
     });
-}
-
-fn check_config(config: Config) -> Result<(), String> {
-    let p = config.processing;
-    match config.visual.visualisation.as_str() {
-        "Bars" => (),
-        "Strings" => (),
-        _ => return Err(String::from("error at visual section, invalid visualisation type. Possible types are: 'Bars' and 'Strings'")),
-    }
-    if p.buffering > 100 {
-        return Err(String::from("error at processing section, max value for buffering is 100"))
-    }
-    if config.visual.max_frequency > 20000 || config.visual.max_frequency < 100 {
-        return Err(String::from("error at processing section, max_frequency must be in between of 100 and 20.000"))
-    }
-    if p.low_frequency_threshold > config.visual.max_frequency / 2 {
-        return Err(String::from("error at processing section, low_frequency_threshold must be lower than half of max_frequency"))
-    }
-
-    Ok(())
 }
 
