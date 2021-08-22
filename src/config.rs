@@ -5,13 +5,13 @@ const DEFAULT_CONFIG: &str =
 "
 [visual]
 # valid arguments: ['Bars', 'Strings']
-visualisation = 'Strings'
+visualisation = 'Bars'
 
 bottom_color= [0.0, 0.0, 0.0]
 top_color = [1.0, 0.0, 0.0]
 max_frequency = 15000
 width = 1.0
-smoothing_size = 5
+smoothing_size = 3
 smoothing_amount = 1
 hide_cursor = false
 
@@ -20,7 +20,7 @@ fullscreen = false
 window_always_on_top = false
 
 [processing]
-buffering = 3
+buffering = 2
 low_frequency_threshold = 50
 low_frequency_scale_doubling = 6
 low_frequency_smoothing_size = 3
@@ -30,14 +30,13 @@ low_frequency_smoothing = 1
 volume_compensation = 0.55
 
 # the further away from 1.0 the more fading, this could distort frequency threshold
-low_frequency_fading = 2.0
+low_frequency_fading = 1.75
 low_frequency_volume_reduction = true
 
 [audio]
 pre_fft_windowing = true
 volume_amplitude = 0.75
 volume_factoring = 0.65
-
 ";
 
 #[derive(Deserialize, Clone)]

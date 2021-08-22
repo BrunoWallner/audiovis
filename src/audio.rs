@@ -1,7 +1,6 @@
 use crate::*;
 use rustfft::{num_complex::Complex, FftPlanner};
 use std::thread;
-use std::time::Duration;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
@@ -46,10 +45,11 @@ pub fn stream_input(
 ) {
     thread::spawn(move || {
         let host = cpal::default_host();
+
         let device = match if input_device == "default" {
-            host.default_input_device()
+            host.default_output_device()
         } else {
-            host.input_devices().unwrap()
+            host.output_devices().unwrap()
                 .find(|x| x.name().map(|y| y == input_device).unwrap_or(false))
         } {
             Some(d) => d,
@@ -59,54 +59,41 @@ pub fn stream_input(
             }
         };
 
-        println!("using input devices: {}", device.name().unwrap());
+        println!("using input device: {}", device.name().unwrap());
 
-        let config: cpal::StreamConfig = device.default_input_config().unwrap().into();
+        let config = device
+            .default_input_config()
+            .expect("Failed to get default input config");
+        println!("Default input config: {:?}", config);
 
-        let (tx, rc) = mpsc::channel();
+        let stream = match config.sample_format() {
+            cpal::SampleFormat::F32 => device.build_input_stream(
+                &config.into(),
+                move |data, _: &_| handle_input_data_f32(data, bridge_sender.clone(), m_freq, pre_fft_windowing, low_high_freq_ration),
+                err_fn,
+            ).unwrap(),
+            other => {
+                panic!("Unsupported sample format {:?}", other);
+            }
+        };
 
-        let input_data_fn =
-            move |data: &[f32], _: &cpal::InputCallbackInfo| match tx.send(data.to_vec()) {
-                Ok(_) => (),
-                Err(_) => thread::sleep(Duration::from_millis(100)),
-            };
-
-        let input_stream = device
-            .build_input_stream(&config, input_data_fn, err_fn)
-            .unwrap();
-
-
-        instruction_receiver(rc, bridge_sender, m_freq, pre_fft_windowing, low_high_freq_ration);
-
-        input_stream.play().unwrap();
+        stream.play().unwrap();
 
         loop {}
     });
 }
 
-fn err_fn(err: cpal::StreamError) {
-    eprintln!("an error occurred on stream: {}", err);
+fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<bridge::Event>, m_freq: u32, pre_fft_windowing: bool, low_high_freq_ration: f32) {
+    let sender = sender.clone();
+    let b = data.to_vec();
+    thread::spawn(move || {
+        let buffer: Vec<f32> = convert_buffer(b, m_freq, pre_fft_windowing, low_high_freq_ration); // pretty cpu heavy
+        sender.send(bridge::Event::Push(buffer)).ok();
+    });
 }
 
-fn instruction_receiver(
-    receiver: mpsc::Receiver<Vec<f32>>,
-    sender: mpsc::Sender<bridge::Event>,
-    m_freq: u32,
-    pre_fft_windowing: bool,
-    low_high_freq_ration: f32,
-) {
-    thread::spawn(move || loop {
-        match receiver.recv() {
-            Ok(b) => {
-                let sender_clone = sender.clone();
-                thread::spawn(move || {
-                    let buffer: Vec<f32> = convert_buffer(b.to_vec(), m_freq, pre_fft_windowing, low_high_freq_ration);
-                    sender_clone.send(bridge::Event::Push(buffer)).unwrap();
-                });
-            }
-            Err(_) => thread::sleep(Duration::from_millis(500)),
-        }
-    });
+fn err_fn(err: cpal::StreamError) {
+    eprintln!("an error occurred on stream: {}", err);
 }
 
 fn apodize(buffer: Vec<f32>) -> Vec<f32> {
