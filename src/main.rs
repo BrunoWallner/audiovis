@@ -21,7 +21,6 @@ use wgpu_abstraction::State;
 
 use clap::{Arg, App};
 
-
 fn main() {
     //env_logger::init();
 
@@ -35,11 +34,11 @@ fn main() {
                     .takes_value(true)
                     .help("use custom configuration"))
 
-        .arg(Arg::with_name("device")
-                    .short("d")
-                    .long("device")
-                    .takes_value(true)
-                    .help("use another device"))
+        .arg(Arg::with_name("input_device")
+                    .short("i")
+                    .long("input-device")
+                    .takes_value(false)
+                    .help("use input device to visualize"))
 
         .arg(Arg::with_name("generate_default_config")
                     .short("g")
@@ -47,32 +46,17 @@ fn main() {
                     .takes_value(false)
                     .help("generates default configuration"))
 
-        .arg(Arg::with_name("list_devices")
-                    .short("l")
-                    .long("list-devices")
-                    .takes_value(false)
-                    .help("enumerate and list through all available audio devices"))
         .get_matches();
 
     let config_path: &str = matches.value_of("config").unwrap_or("default");
-    let input_device: String = String::from(matches.value_of("device").unwrap_or("default"));
+    let mut audio_device: audio::DeviceType = audio::DeviceType::Output();
+    if matches.is_present("input_device") {
+        audio_device = audio::DeviceType::Input();
+    }
 
     if matches.is_present("generate_default_config") {
         config::generate_default_config();
         println!("generated default config");
-        std::process::exit(0);
-    }
-    if matches.is_present("list_devices") {
-        let devices = match audio::enumerate_devices() {
-            Ok(d) => d,
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-        };
-        for device in devices.iter() {
-            println!("[{}]\t{}", device.host, device.name);
-        }
         std::process::exit(0);
     }
 
@@ -103,7 +87,7 @@ fn main() {
     let config_clone = config.clone();
     let sender_clone = bridge_sender.clone();
     audio::stream_input(
-        input_device,
+        audio_device,
         sender_clone,
         config_clone.visual.max_frequency,
         config_clone.audio.pre_fft_windowing,

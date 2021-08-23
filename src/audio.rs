@@ -10,34 +10,14 @@ pub struct AudioDevice {
     pub host: String,
 }
 
-pub fn enumerate_devices() -> Result<Vec<AudioDevice>, String> {
-    let mut buffer: Vec<AudioDevice> = Vec::new();
-    let available_hosts = cpal::available_hosts();
-    for host_id in available_hosts {
-        let host = match cpal::host_from_id(host_id) {
-            Ok(h) => h,
-            Err(_) => return Err(String::from("host is unavailable")),
-        };
-        let devices = match host.devices() {
-            Ok(d) => d,
-            Err(_) => return Err(String::from("devices are unavailable")),
-        };
-        for (_, device) in devices.enumerate() {
-            let name: String = match device.name() {
-                Ok(n) => n,
-                Err(_) => String::from("INVALID_NAME"),
-            };
-            buffer.push(AudioDevice {
-                name,
-                host: String::from(host_id.name()),
-            });
-        }
-    }
-    Ok(buffer)
+#[derive(Debug)]
+pub enum DeviceType {
+    Input(),
+    Output(),
 }
 
 pub fn stream_input(
-    input_device: String,
+    device_type: DeviceType,
     bridge_sender: mpsc::Sender<bridge::Event>,
     m_freq: u32,
     pre_fft_windowing: bool,
@@ -46,41 +26,17 @@ pub fn stream_input(
     thread::spawn(move || {
         let host = cpal::default_host();
 
-        let device = match if input_device == "default" {
-            host.default_output_device()
-        } else {
-            host.devices().unwrap()
-                .find(|x| x.name().map(|y| y == input_device).unwrap_or(false))
-        } {
-            Some(d) => d,
-            None => {
-                println!("could not find input device: {}", input_device);
-                std::process::exit(1);
-            }
+        let device =  match device_type {
+            DeviceType::Input() => host.default_input_device().unwrap(),
+            DeviceType::Output() => host.default_output_device().unwrap(),
         };
-
-        println!("using device: {}", device.name().unwrap());
+        println!("using device: {:#?}", device_type);
 
         // build either input or output config
-        let config = match device.default_input_config() {
-            Ok(c) => {
-                println!("using input config");
-                c
-            },
-            Err(_) => {
-                match device.default_output_config() {
-                    Ok(c) => {
-                        println!("using output config");
-                    c
-                    },
-                    Err(_) => {
-                        println!("could not find any config for device");
-                        std::process::exit(1);
-                    }
-                }
-            }
+        let config = match device_type {
+            DeviceType::Input() => device.default_input_config().unwrap(),
+            DeviceType::Output() => device.default_output_config().unwrap(),
         };
-        println!("Default input config: {:?}", config);
 
         let stream = match config.sample_format() {
             cpal::SampleFormat::F32 => device.build_input_stream(
