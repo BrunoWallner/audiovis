@@ -49,7 +49,7 @@ pub fn stream_input(
         let device = match if input_device == "default" {
             host.default_output_device()
         } else {
-            host.output_devices().unwrap()
+            host.devices().unwrap()
                 .find(|x| x.name().map(|y| y == input_device).unwrap_or(false))
         } {
             Some(d) => d,
@@ -59,11 +59,27 @@ pub fn stream_input(
             }
         };
 
-        println!("using input device: {}", device.name().unwrap());
+        println!("using device: {}", device.name().unwrap());
 
-        let config = device
-            .default_input_config()
-            .expect("Failed to get default input config");
+        // build either input or output config
+        let config = match device.default_input_config() {
+            Ok(c) => {
+                println!("using input config");
+                c
+            },
+            Err(_) => {
+                match device.default_output_config() {
+                    Ok(c) => {
+                        println!("using output config");
+                    c
+                    },
+                    Err(_) => {
+                        println!("could not find any config for device");
+                        std::process::exit(1);
+                    }
+                }
+            }
+        };
         println!("Default input config: {:?}", config);
 
         let stream = match config.sample_format() {

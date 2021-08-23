@@ -35,11 +35,11 @@ fn main() {
                     .takes_value(true)
                     .help("use custom configuration"))
 
-        .arg(Arg::with_name("input_device")
-                    .short("i")
-                    .long("input-device")
+        .arg(Arg::with_name("device")
+                    .short("d")
+                    .long("device")
                     .takes_value(true)
-                    .help("use another input device"))
+                    .help("use another device"))
 
         .arg(Arg::with_name("generate_default_config")
                     .short("g")
@@ -55,7 +55,7 @@ fn main() {
         .get_matches();
 
     let config_path: &str = matches.value_of("config").unwrap_or("default");
-    let input_device: String = String::from(matches.value_of("input_device").unwrap_or("default"));
+    let input_device: String = String::from(matches.value_of("device").unwrap_or("default"));
 
     if matches.is_present("generate_default_config") {
         config::generate_default_config();
