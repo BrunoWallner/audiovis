@@ -7,36 +7,45 @@ const DEFAULT_CONFIG: &str =
 # valid arguments: ['Bars', 'Strings']
 visualisation = 'Bars'
 
-bottom_color= [0.0, 0.0, 0.0]
+bottom_color= [0.0, 0.0, 0.01]
 top_color = [1.0, 0.0, 0.0]
+
+# max frequency that should be displayed, lower does not mean any saved work on cpu
 max_frequency = 15000
 width = 1.0
 smoothing_size = 3
 smoothing_amount = 1
+
+# hides the cursor if hovered over audiovis window
 hide_cursor = false
 
-# pressing F also toggles fullscreen
+# start audiovis in fullscreen-mode, pressing F also toggles fullscreen
 fullscreen = false
 window_always_on_top = false
 
 [processing]
+# how many times the output should be smoothed and buffered with previous versions of itself
 buffering = 2
+
+# processing of lower frequencies
 low_frequency_threshold = 50
-low_frequency_scale_doubling = 6
+low_frequency_scale_doubling = 5
 low_frequency_smoothing_size = 3
 low_frequency_smoothing = 1
 
-# higher value means less low_frequencies and higher high_frequencies
+# compensates high and low frequency volume-difference, higher value means less low_frequencies and higher high_frequencies
 volume_compensation = 0.55
 
 # the further away from 1.0 the more fading, this could distort frequency threshold
-low_frequency_fading = 1.75
+low_frequency_fading = 2.0
 low_frequency_volume_reduction = true
 
 [audio]
+# should improve quality
 pre_fft_windowing = true
-volume_amplitude = 0.75
-volume_factoring = 0.65
+
+volume_amplitude = 0.70
+volume_factoring = 0.75
 ";
 
 #[derive(Deserialize, Clone)]

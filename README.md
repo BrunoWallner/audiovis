@@ -12,7 +12,7 @@ I primarily work on Linux so there will be the best support, but I try to keep p
 Feature                 |   Windows 10  |   Linux   |   macOS   |
 ----------------------- | ------------- | --------- | --------- |
 DefaultAudioInputStream | Supported     | Supported | ?         |
-DesktopAudioInputStream | -             | WiP       | -         |
+DesktopAudioInputStream | Supported     | Supported | ?         |
 BarVisualisation        | Supported     | Supported | Supported |
 StringVisualisation     | Supported     | Supported | Supported |
 
@@ -28,15 +28,21 @@ It should also be possible without much work to port it over to the web but I ne
 
 ## Features
 ##### already implemented
-* 2-color bar coloring
 * volume control
+* rich configuration via config file
 * string and bar visualisation
 * configurable buffering and smoothing via config.toml
 * configurable higher scaling of lower frequencies for a better look
 * selectable amount of frequencies that should be displayed (0 - 20.000)
+* automatically selecting Desktop output-audio-stream as input-stream (not sure if it is even possible)
+* even runs on raspberrypi 4
 
 ##### WiP
-* automatically selecting Desktop output-audio-stream as input-stream (not sure if it is even possible)
 * modifiable config via userinput during runtime
 * selecting sampling rate of audio-stream
 * inbuilt mp3 and wav player
+
+## How to configure
+1. use `audiovis -g` to generate the default config as `default.config.toml` to your current directory
+2. modify said configuration, documentation should be included in the file
+3. use `audiovis -c <configuration>` to launch audiovis with your modified config
