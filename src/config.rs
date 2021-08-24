@@ -24,21 +24,11 @@ fullscreen = false
 window_always_on_top = false
 
 [processing]
-# how many times the output should be smoothed and buffered with previous versions of itself
-buffering = 2
+gravity = 0.4
 
-# processing of lower frequencies
-low_frequency_threshold = 50
-low_frequency_scale_doubling = 5
-low_frequency_smoothing_size = 3
-low_frequency_smoothing = 1
-
-# compensates high and low frequency volume-difference, higher value means less low_frequencies and higher high_frequencies
-volume_compensation = 0.55
-
-# the further away from 1.0 the more fading, this could distort frequency threshold
-low_frequency_fading = 2.0
-low_frequency_volume_reduction = true
+# compensates high and low frequency volume- and space-difference, higher value means less low_frequencies and higher high_frequencies
+volume_compensation = 0.6
+frequency_compensation = 3.5
 
 [audio]
 # should improve quality
@@ -78,13 +68,9 @@ pub struct Audio {
 
 #[derive(Deserialize, Clone)]
 pub struct Processing {
-    pub buffering: usize,
-    pub low_frequency_threshold: u32,
-    pub low_frequency_scale_doubling: u8,
-    pub low_frequency_smoothing: u8,
-    pub low_frequency_smoothing_size: u32,
-    pub low_frequency_fading: f32,
+    pub gravity: f32,
     pub volume_compensation: f32,
+    pub frequency_compensation: f32,
 }
 
 pub fn generate_default_config() {
@@ -126,14 +112,11 @@ pub fn check_config(config: Config) -> Result<(), String> {
         "Strings" => (),
         _ => return Err(String::from("error at visual section, invalid visualisation type. Possible types are: 'Bars' and 'Strings'")),
     }
-    if p.buffering > 100 {
+    if p.gravity < 0.0 {
         return Err(String::from("error at processing section, max value for buffering is 100"))
     }
     if config.visual.max_frequency > 20000 || config.visual.max_frequency < 100 {
         return Err(String::from("error at processing section, max_frequency must be in between of 100 and 20.000"))
-    }
-    if p.low_frequency_threshold > config.visual.max_frequency / 2 {
-        return Err(String::from("error at processing section, low_frequency_threshold must be lower than half of max_frequency"))
     }
 
     Ok(())

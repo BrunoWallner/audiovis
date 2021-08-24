@@ -70,19 +70,9 @@ fn main() {
 
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
-    let sender_clone = bridge_sender.clone();
     bridge::init(
         bridge_receiver,
-        sender_clone,
-        config.processing.buffering,
-        config.visual.smoothing_size,
-        config.visual.smoothing_amount,
-        config.visual.max_frequency,
-        config.processing.low_frequency_threshold,
-        config.processing.low_frequency_scale_doubling,
-        config.processing.low_frequency_smoothing,
-        config.processing.low_frequency_smoothing_size,
-        config.processing.low_frequency_fading,
+        config.processing.gravity,
     );
     let config_clone = config.clone();
     let sender_clone = bridge_sender.clone();
@@ -92,6 +82,7 @@ fn main() {
         config_clone.visual.max_frequency,
         config_clone.audio.pre_fft_windowing,
         config_clone.processing.volume_compensation,
+        config_clone.processing.frequency_compensation,
     );
 
     let event_loop = EventLoop::new();
