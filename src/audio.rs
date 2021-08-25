@@ -145,7 +145,7 @@ fn compensate_frequencies(buffer: &mut Vec<f32>, compensation: f32) {
                 scaled += 1;
             }
         }
-        // smoothing
+        /* smoothing
         let interpolated_len: usize = buffer_len + scaled;
         for j in 0..interpolated_len {
             let mut y: f32 = 0.0;
@@ -159,6 +159,15 @@ fn compensate_frequencies(buffer: &mut Vec<f32>, compensation: f32) {
                 }
             }
             buffer[j] = y / smoothed;
+        }
+        */
+        // smoothing
+        let interpolated_len: usize = buffer_len + scaled;
+        for i in 0..interpolated_len {
+            if i < buffer.len() - 1 {
+                let value: f32 = (buffer[i] + (buffer[i+1])) / 2.0;
+                buffer[i] = value;
+            }
         }
     }
 }

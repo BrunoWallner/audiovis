@@ -7,8 +7,8 @@ const DEFAULT_CONFIG: &str =
 # valid arguments: ['Bars', 'Strings']
 visualisation = 'Bars'
 
-bottom_color= [0.0, 0.0, 0.01]
-top_color = [1.0, 0.0, 0.0]
+bottom_color= [0.0, 0.0, 0.0]
+top_color = [1.0, 1.0, 1.0]
 
 # max frequency that should be displayed, lower does not mean any saved work on cpu
 max_frequency = 15000
@@ -24,18 +24,18 @@ fullscreen = false
 window_always_on_top = false
 
 [processing]
-gravity = 0.4
+gravity = 1.0
 
 # compensates high and low frequency volume- and space-difference, higher value means less low_frequencies and higher high_frequencies
-volume_compensation = 0.6
-frequency_compensation = 3.5
+volume_compensation = 0.65
+frequency_compensation = 3.75
 
 [audio]
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 0.70
-volume_factoring = 0.75
+volume_amplitude = 0.35
+volume_factoring = 1.0
 ";
 
 #[derive(Deserialize, Clone)]
