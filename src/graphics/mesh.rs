@@ -21,7 +21,7 @@ pub fn convert_to_buffer(
                 let x = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0) + width;
                 let y: f32 = volume_amplitude * ( (buffer[i] as f32).powf(volume_factoring) * 0.05 ) - 1.0;
 
-                let top_color: [f32; 3] = [ top_color[0] * (y + 1.0),  top_color[1] * (y + 1.0),  top_color[2] * (y + 1.0)];
+                //let top_color: [f32; 3] = [ top_color[0] * (y + 1.0),  top_color[1] * (y + 1.0),  top_color[2] * (y + 1.0)];
 
                 /*
                 vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color:  bottom_color });
@@ -37,15 +37,15 @@ pub fn convert_to_buffer(
                 indices.push(i + 0);
                 indices.push(i + 3);
                 */
-                vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color:  bottom_color });
-                vertices.push(Vertex { position: [x - width,  -1.0, 0.5],   color:  bottom_color });
-                vertices.push(Vertex { position: [x + width,  -1.0, 0.5],   color:  bottom_color });
-                vertices.push(Vertex { position: [x + width,  -1.0, 0.0],   color:  bottom_color });
+                vertices.push(Vertex { position: [x - width,  -1.0, 0.35],   color:  bottom_color });
+                vertices.push(Vertex { position: [x - width,  -1.0, 0.25],   color:  bottom_color });
+                vertices.push(Vertex { position: [x + width,  -1.0, 0.25],   color:  bottom_color });
+                vertices.push(Vertex { position: [x + width,  -1.0, 0.35],   color:  bottom_color });
 
-                vertices.push(Vertex { position: [x - width,  y, 0.0],   color: top_color });
-                vertices.push(Vertex { position: [x - width,  y, 0.5],   color: top_color });
-                vertices.push(Vertex { position: [x + width,  y, 0.5],   color: top_color });
-                vertices.push(Vertex { position: [x + width,  y, 0.0],   color: top_color });
+                vertices.push(Vertex { position: [x - width,  y, 0.35],   color: top_color });
+                vertices.push(Vertex { position: [x - width,  y, 0.25],   color: top_color });
+                vertices.push(Vertex { position: [x + width,  y, 0.25],   color: top_color });
+                vertices.push(Vertex { position: [x + width,  y, 0.35],   color: top_color });
 
                 let i = vertices.len() as u16 - 8;
                 indices.push(i+0);

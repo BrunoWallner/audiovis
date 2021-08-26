@@ -1,11 +1,35 @@
 use crate::*;
 use crate::config::Config;
+use crate::graphics::camera::*;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
+}
+
+// We need this for Rust to store our data correctly for the shaders
+#[repr(C)]
+// This is so we can store this in a buffer
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Uniforms {
+    // We can't use cgmath with bytemuck directly so we'll have
+    // to convert the Matrix4 into a 4x4 f32 array
+    view_proj: [[f32; 4]; 4],
+}
+
+impl Uniforms {
+    fn new() -> Self {
+        use cgmath::SquareMatrix;
+        Self {
+            view_proj: cgmath::Matrix4::identity().into(),
+        }
+    }
+
+    fn update_view_proj(&mut self, camera: &Camera) {
+        self.view_proj = camera.build_view_projection_matrix().into();
+    }
 }
 
 impl Vertex {
@@ -42,6 +66,10 @@ pub struct State {
     num_indices: u32,
     bridge_sender: mpsc::Sender<bridge::Event>,
     config: Config,
+    camera: Camera,
+    uniforms: Uniforms,
+    uniform_buffer: wgpu::Buffer,
+    uniform_bind_group: wgpu::BindGroup,
 }
 impl State {
     // Creating some of the wgpu types requires async code
@@ -83,12 +111,92 @@ impl State {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        let vertices: Vec<Vertex> = Vec::new();
+
+        // must be align to 4 bytes
+        let indices: Vec<u16> = Vec::new();
+
+        let vertex_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsage::VERTEX,
+            }
+        );
+        let index_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(&indices),
+                usage: wgpu::BufferUsage::INDEX,
+            }
+        );
+        let num_indices = 0;
+
+
+        let camera = Camera {
+            // position the camera one unit up and 2 units back
+            // +z is out of the screen
+            eye: (0.0, 0.75, 3.5).into(),
+            // have it look at the origin
+            target: (0.0, -0.125, 0.5).into(),
+            // which way is "up"
+            up: cgmath::Vector3::unit_y(),
+            aspect: sc_desc.width as f32 / sc_desc.height as f32,
+            fovy: 30.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+
+        let mut uniforms = Uniforms::new();
+        uniforms.update_view_proj(&camera);
+
+        let uniform_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Uniform Buffer"),
+                contents: bytemuck::cast_slice(&[uniforms]),
+                usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            }
+        );
+
+        let uniform_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStage::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
+            ],
+            label: Some("uniform_bind_group_layout"),
+        });
+
+
+        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &uniform_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buffer.as_entire_binding(),
+                }
+            ],
+            label: Some("uniform_bind_group"),
+        });
+
+
+        let render_pipeline_layout = device.create_pipeline_layout(
+            &wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[
+                    &uniform_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
-            });
+            }
+        );
+
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
@@ -129,26 +237,7 @@ impl State {
             },
         });
 
-        let vertices: Vec<Vertex> = Vec::new();
 
-        // must be align to 4 bytes
-        let indices: Vec<u16> = Vec::new();
-
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsage::VERTEX,
-            }
-        );
-        let index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsage::INDEX,
-            }
-        );
-        let num_indices = indices.len() as u32;
 
         Self {
             surface,
@@ -163,6 +252,10 @@ impl State {
             num_indices,
             bridge_sender,
             config,
+            camera,
+            uniforms,
+            uniform_buffer,
+            uniform_bind_group,
         }
     }
 
@@ -201,19 +294,6 @@ impl State {
         );
         vertices.append(&mut v);
         indices.append(&mut i);
-
-
-        /* visualisation of text
-        let(_size, (mut v, mut i)) = mesh::convert_text(
-            String::from("HALAL, BUMSA\nBIMA"),
-            0.15,
-            [50.0 / self.size.width as f32, 50.0 / self.size.height as f32],
-            [1.0, 1.0, 1.0],
-            vertices.len() as u16,
-        );
-        vertices.append(&mut v);
-        indices.append(&mut i);
-        */
 
         self.num_indices = indices.len() as u32;
 
@@ -267,8 +347,10 @@ impl State {
                 depth_stencil_attachment: None,
             });
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 

@@ -1,0 +1,38 @@
+
+[visual]
+# valid arguments: ['Bars', 'Strings']
+visualisation = 'Bars'
+
+bottom_color= [0.0, 0.0, 0.05]
+top_color = [1.0, 0.0, 0.0]
+
+# max frequency that should be displayed, lower does not mean any saved work on cpu
+max_frequency = 20000
+width = 1.0
+smoothing_size = 2
+smoothing_amount = 1
+
+# hides the cursor if hovered over audiovis window
+hide_cursor = false
+
+# start audiovis in fullscreen-mode, pressing F also toggles fullscreen
+fullscreen = false
+window_always_on_top = false
+
+[processing]
+gravity = 1.25
+
+# compensates high and low frequency volume- and space-difference, higher value means less low_frequencies and higher high_frequencies
+volume_compensation = 0.55
+frequency_compensation = 3.5
+
+# range of frequencies which scale should be increased
+fav_frequency_range = [1000, 5000]
+fav_frequency_doubling = 2
+
+[audio]
+# should improve quality
+pre_fft_windowing = true
+
+volume_amplitude = 0.25
+volume_factoring = 1.0
