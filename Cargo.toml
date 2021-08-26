@@ -8,15 +8,13 @@ resolver = "2"
 
 [dependencies]
 winit = "0.25"
-env_logger = "0.8"
-log = "0.4"
 wgpu = "0.9.0"
 pollster = "0.2"
 bytemuck = { version = "1.4", features = [ "derive" ] }
-anyhow = "1.0.42"
 cpal = "0.13.3"
 rustfft = "6.0.1"
 serde = "1.0.127"
 toml = "0.5.8"
 apodize = "1.0.0"
 clap = "2.33.3"
+cgmath = "0.18"

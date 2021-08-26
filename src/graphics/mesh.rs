@@ -1,4 +1,4 @@
-use crate::wgpu_abstraction::Vertex;
+use crate::graphics::wgpu_abstraction::Vertex;
 
 pub fn convert_to_buffer(
     buffer: Vec<f32>,
@@ -23,6 +23,7 @@ pub fn convert_to_buffer(
 
                 let top_color: [f32; 3] = [ top_color[0] * (y + 1.0),  top_color[1] * (y + 1.0),  top_color[2] * (y + 1.0)];
 
+                /*
                 vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color:  bottom_color });
                 vertices.push(Vertex { position: [x - width,  y, 0.0],   color: top_color });
                 vertices.push(Vertex { position: [x + width,  y, 0.0],   color: top_color });
@@ -35,6 +36,59 @@ pub fn convert_to_buffer(
                 indices.push(i + 2);
                 indices.push(i + 0);
                 indices.push(i + 3);
+                */
+                vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   color:  bottom_color });
+                vertices.push(Vertex { position: [x - width,  -1.0, 0.5],   color:  bottom_color });
+                vertices.push(Vertex { position: [x + width,  -1.0, 0.5],   color:  bottom_color });
+                vertices.push(Vertex { position: [x + width,  -1.0, 0.0],   color:  bottom_color });
+
+                vertices.push(Vertex { position: [x - width,  y, 0.0],   color: top_color });
+                vertices.push(Vertex { position: [x - width,  y, 0.5],   color: top_color });
+                vertices.push(Vertex { position: [x + width,  y, 0.5],   color: top_color });
+                vertices.push(Vertex { position: [x + width,  y, 0.0],   color: top_color });
+
+                let i = vertices.len() as u16 - 8;
+                indices.push(i+0);
+                indices.push(i+7);
+                indices.push(i+4);
+                indices.push(i+0);
+                indices.push(i+3);
+                indices.push(i+7);
+
+                indices.push(i+1);
+                indices.push(i+4);
+                indices.push(i+5);
+                indices.push(i+1);
+                indices.push(i+0);
+                indices.push(i+4);
+
+                indices.push(i+2);
+                indices.push(i+5);
+                indices.push(i+6);
+                indices.push(i+2);
+                indices.push(i+1);
+                indices.push(i+5);
+
+                indices.push(i+3);
+                indices.push(i+6);
+                indices.push(i+7);
+                indices.push(i+3);
+                indices.push(i+2);
+                indices.push(i+6);
+
+                indices.push(i+0);
+                indices.push(i+1);
+                indices.push(i+2);
+                indices.push(i+0);
+                indices.push(i+2);
+                indices.push(i+3);
+
+                indices.push(i+4);
+                indices.push(i+6);
+                indices.push(i+5);
+                indices.push(i+4);
+                indices.push(i+7);
+                indices.push(i+6);
             }
         },
         "Strings" => {

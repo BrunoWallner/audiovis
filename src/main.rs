@@ -10,12 +10,10 @@ use std::sync::mpsc;
 
 mod bridge;
 
-mod mesh;
-
 mod config;
 mod audio;
-mod wgpu_abstraction;
-use wgpu_abstraction::State;
+mod graphics;
+use graphics::wgpu_abstraction::State;
 
 use clap::{Arg, App};
 

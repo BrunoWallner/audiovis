@@ -190,7 +190,7 @@ impl State {
         let mut indices: Vec<u16> = Vec::new();
 
         // visualisation of buffer
-        let (mut v, mut i) = mesh::convert_to_buffer(
+        let (mut v, mut i) = graphics::mesh::convert_to_buffer(
             received.clone(),
             self.config.visual.visualisation.clone(),
             self.config.visual.width,
