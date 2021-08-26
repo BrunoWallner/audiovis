@@ -5,9 +5,7 @@ use winit::{
     window::Window,
     window::Fullscreen,
 };
-
 use wgpu::util::DeviceExt;
-
 use std::sync::mpsc;
 
 mod bridge;
@@ -65,24 +63,19 @@ fn main() {
         Err(e) => {
             eprintln!("{}", e);
             std::process::exit(1);
-            }
+        }
     };
 
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
     bridge::init(
         bridge_receiver,
-        config.processing.gravity,
+        config.clone(),
     );
-    let config_clone = config.clone();
-    let sender_clone = bridge_sender.clone();
     audio::stream_input(
         audio_device,
-        sender_clone,
-        config_clone.visual.max_frequency,
-        config_clone.audio.pre_fft_windowing,
-        config_clone.processing.volume_compensation,
-        config_clone.processing.frequency_compensation,
+        bridge_sender.clone(),
+        config.clone(),
     );
 
     let event_loop = EventLoop::new();
@@ -96,12 +89,7 @@ fn main() {
     let mut state = pollster::block_on(State::new(
         &window,
         bridge_sender.clone(),
-        config.visual.top_color,
-        config.visual.bottom_color,
-        config.visual.width,
-        config.audio.volume_amplitude,
-        config.visual.visualisation,
-        config.audio.volume_factoring,
+        config.clone(),
     ));
 
     if config.visual.fullscreen {

@@ -4,6 +4,8 @@ use std::thread;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
+use crate::config::Config;
+
 #[derive(Debug)]
 pub struct AudioDevice {
     pub name: String,
@@ -19,10 +21,7 @@ pub enum DeviceType {
 pub fn stream_input(
     device_type: DeviceType,
     bridge_sender: mpsc::Sender<bridge::Event>,
-    m_freq: u32,
-    pre_fft_windowing: bool,
-    low_high_freq_volume_compensation: f32,
-    low_high_freq_space_compensation: f32,
+    config: Config,
 ) {
     thread::spawn(move || {
         let host = cpal::default_host();
@@ -34,15 +33,15 @@ pub fn stream_input(
         println!("using device: {:#?}", device_type);
 
         // build either input or output config
-        let config = match device_type {
+        let device_config = match device_type {
             DeviceType::Input() => device.default_input_config().unwrap(),
             DeviceType::Output() => device.default_output_config().unwrap(),
         };
 
-        let stream = match config.sample_format() {
+        let stream = match device_config.sample_format() {
             cpal::SampleFormat::F32 => device.build_input_stream(
-                &config.into(),
-                move |data, _: &_| handle_input_data_f32(data, bridge_sender.clone(), m_freq, pre_fft_windowing, low_high_freq_volume_compensation, low_high_freq_space_compensation),
+                &device_config.into(),
+                move |data, _: &_| handle_input_data_f32(data, bridge_sender.clone(), config.clone()),
                 err_fn,
             ).unwrap(),
             other => {
@@ -56,11 +55,11 @@ pub fn stream_input(
     });
 }
 
-fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<bridge::Event>, m_freq: u32, pre_fft_windowing: bool, low_high_freq_volume_compensation: f32, low_high_freq_space_compensation: f32) {
+fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<bridge::Event>, config: Config) {
     let sender = sender.clone();
     let b = data.to_vec();
     thread::spawn(move || {
-        let buffer: Vec<f32> = convert_buffer(b, m_freq, pre_fft_windowing, low_high_freq_volume_compensation, low_high_freq_space_compensation); // pretty cpu heavy
+        let buffer: Vec<f32> = convert_buffer(b, config); // pretty cpu heavy
         sender.send(bridge::Event::Push(buffer)).ok();
     });
 }
@@ -84,12 +83,10 @@ fn apodize(buffer: Vec<f32>) -> Vec<f32> {
 
 pub fn convert_buffer(
     input_buffer: Vec<f32>,
-    m_freq: u32, pre_fft_windowing: bool,
-    low_high_freq_volume_compensation: f32,
-    low_high_freq_space_compensation: f32,
+    config: Config,
 ) -> Vec<f32> {
     let mut input_buffer: Vec<f32> = input_buffer;
-    if pre_fft_windowing {
+    if config.audio.pre_fft_windowing {
         input_buffer = apodize(input_buffer)
     }
 
@@ -117,14 +114,14 @@ pub fn convert_buffer(
     let buffer_len = output_buffer.len();
     for i in 0..buffer_len {
         let percentage: f32 = i as f32 / buffer_len as f32;
-        let amount: f32 = 0.1 / percentage.powf(low_high_freq_volume_compensation);
+        let amount: f32 = 0.1 / percentage.powf(config.processing.volume_compensation);
         output_buffer[i] /= amount;
     }
     // max frequency
-    let percentage: f32 = m_freq as f32 / 20000.0;
+    let percentage: f32 = config.visual.max_frequency as f32 / 20000.0;
     let mut output_buffer = output_buffer[0..(output_buffer.len() as f32 * percentage) as usize].to_vec();
 
-    compensate_frequencies(&mut output_buffer,low_high_freq_space_compensation);
+    compensate_frequencies(&mut output_buffer, config.processing.frequency_compensation);
     output_buffer
 }
 
@@ -133,6 +130,7 @@ fn compensate_frequencies(buffer: &mut Vec<f32>, compensation: f32) {
     let mut smooth_step: f32 = 1.0;
 
     let mut scaled: usize = 0;
+
     'compensating: loop {
         let mut position: usize = 0;
         smooth_step *= compensation; // 3.5
@@ -145,22 +143,6 @@ fn compensate_frequencies(buffer: &mut Vec<f32>, compensation: f32) {
                 scaled += 1;
             }
         }
-        /* smoothing
-        let interpolated_len: usize = buffer_len + scaled;
-        for j in 0..interpolated_len {
-            let mut y: f32 = 0.0;
-            let mut smoothed: f32 = 0.0;
-            for x in 0..3 {
-                let place1: usize = j + x as usize;
-                let amount: f32 = (1000 / (x + 1)) as f32;
-                if place1 < interpolated_len {
-                    y += buffer[place1] * amount;
-                    smoothed += amount;
-                }
-            }
-            buffer[j] = y / smoothed;
-        }
-        */
         // smoothing
         let interpolated_len: usize = buffer_len + scaled;
         for i in 0..interpolated_len {

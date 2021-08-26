@@ -1,4 +1,5 @@
 use crate::*;
+use crate::config::Config;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -40,16 +41,11 @@ pub struct State {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     bridge_sender: mpsc::Sender<bridge::Event>,
-    top_color: [f32; 3],
-    bottom_color: [f32; 3],
-    width: f32,
-    volume_amplitude: f32,
-    visualisation: String,
-    volume_factoring: f32,
+    config: Config,
 }
 impl State {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, top_color: [f32; 3], bottom_color: [f32; 3], width: f32, volume_amplitude: f32, visualisation: String, volume_factoring: f32) -> Self {
+    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, config: Config) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -166,12 +162,7 @@ impl State {
             index_buffer,
             num_indices,
             bridge_sender,
-            top_color,
-            bottom_color,
-            width,
-            volume_amplitude,
-            visualisation,
-            volume_factoring,
+            config,
         }
     }
 
@@ -201,12 +192,12 @@ impl State {
         // visualisation of buffer
         let (mut v, mut i) = mesh::convert_to_buffer(
             received.clone(),
-            self.visualisation.clone(),
-            self.width,
-            self.volume_amplitude,
-            self.volume_factoring,
-            self.top_color,
-            self.bottom_color,
+            self.config.visual.visualisation.clone(),
+            self.config.visual.width,
+            self.config.audio.volume_amplitude,
+            self.config.audio.volume_factoring,
+            self.config.visual.top_color,
+            self.config.visual.bottom_color,
         );
         vertices.append(&mut v);
         indices.append(&mut i);

@@ -1,7 +1,6 @@
 use std::sync::mpsc;
 use std::thread;
-use std::time::Instant;
-
+use crate::config::Config;
 
 pub enum Event {
     Push(Vec<f32>),
@@ -10,17 +9,15 @@ pub enum Event {
 
 pub fn init(
     receiver: mpsc::Receiver<Event>,
-    gravity: f32,
+    config: Config,
 ) {
-    let mut time: Instant = Instant::now();
     let mut buffer: Vec<f32> = Vec::new();
     thread::spawn(move || loop {
         match receiver.recv() {
             Ok(event) => match event {
-                Event::Push(n) => {
-                    let delta_time: u128 = time.elapsed().as_nanos();
-                    time = Instant::now();
-                    buffer = smooth_buffer(&mut buffer, n, gravity, delta_time);
+                Event::Push(mut n) => {
+                    n = smooth_buffer(buffer.clone(), n.clone());
+                    buffer = buffer_gravity(buffer, n, config.processing.gravity + 1.0)
                 }
                 Event::Consume(sender) => {
                     sender.send(buffer.clone()).unwrap();
@@ -34,12 +31,10 @@ pub fn init(
     });
 }
 
-
-fn smooth_buffer(
-    old_buffer: &mut Vec<f32>,
+fn buffer_gravity(
+    mut old_buffer: Vec<f32>,
     new_buffer: Vec<f32>,
     gravity: f32,
-    delta_time: u128,
 ) -> Vec<f32> {
     // buffering and time smoothing
     let mut output_buffer: Vec<f32> = Vec::new();
@@ -53,11 +48,24 @@ fn smooth_buffer(
         if new_buffer[i] > old_buffer[i] {
             old_buffer[i] = new_buffer[i]
         }
-        let mut gravity: f32 = ((gravity + 1.0) * 0.75) / (delta_time as f32 * 0.00000002);
-        if gravity < 1.0 {
-            gravity = 1.0;
-        }
         output_buffer.push(old_buffer[i] / gravity);
     }
     return output_buffer;
+}
+
+fn smooth_buffer(
+    mut old_buffer: Vec<f32>,
+    new_buffer: Vec<f32>,
+) -> Vec<f32> {
+    let mut output_buffer: Vec<f32> = Vec::new();
+    let difference: i32 = new_buffer.len() as i32 - old_buffer.len() as i32;
+    if difference > 0 {
+        for _ in 0..difference {
+            old_buffer.push(0.0);
+        }
+    }
+    for i in 0..new_buffer.len() {
+        output_buffer.push((old_buffer[i] + new_buffer[i]) / 2.0);
+    }
+    output_buffer
 }
