@@ -7,12 +7,14 @@ const DEFAULT_CONFIG: &str =
 # valid arguments: ['Bars', 'Strings']
 visualisation = 'Bars'
 
-bottom_color= [0.0, 0.0, 0.0]
-top_color = [1.0, 1.0, 1.0]
+camera_pos = [0.0, -0.25, 6.0]
+camera_facing = [0.0, -0.25, 0.0]
+fov = 15
 
 # max frequency that should be displayed, lower does not mean any saved work on cpu
 max_frequency = 15000
 width = 1.0
+z_width = 0.2
 smoothing_size = 3
 smoothing_amount = 1
 
@@ -34,6 +36,13 @@ frequency_compensation = 3.5
 fav_frequency_range = [1000, 5000]
 fav_frequency_doubling = 2
 
+# how many buffers should be saved and displayed
+buffering = 20
+
+# less value means more reduction, 0.0 to disable
+bar_reduction = 0.75
+
+
 [audio]
 # should improve quality
 pre_fft_windowing = true
@@ -52,15 +61,17 @@ pub struct Config {
 #[derive(Deserialize, Clone)]
 pub struct Visual {
     pub visualisation: String,
-    pub bottom_color: [f32; 3],
-    pub top_color: [f32; 3],
     pub smoothing_size: u32,
     pub smoothing_amount: u32,
     pub max_frequency: u32,
     pub width: f32,
+    pub z_width: f32,
     pub hide_cursor: bool,
     pub fullscreen: bool,
     pub window_always_on_top: bool,
+    pub camera_pos: [f32; 3],
+    pub camera_facing: [f32; 3],
+    pub fov: f32,
 }
 
 #[derive(Deserialize, Clone)]
@@ -77,6 +88,8 @@ pub struct Processing {
     pub frequency_compensation: f32,
     pub fav_frequency_range: [u32; 2],
     pub fav_frequency_doubling: u16,
+    pub buffering: u32,
+    pub bar_reduction: f32,
 }
 
 pub fn generate_default_config() {

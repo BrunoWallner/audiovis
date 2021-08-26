@@ -17,6 +17,7 @@ pub fn init(
             Ok(event) => match event {
                 Event::Push(mut n) => {
                     n = smooth_buffer(buffer.clone(), n.clone());
+                    bar_reduction(&mut n, config.processing.bar_reduction);
                     buffer = buffer_gravity(buffer, n, (config.processing.gravity * 0.25 ) + 1.0)
                 }
                 Event::Consume(sender) => {
@@ -68,4 +69,19 @@ fn smooth_buffer(
         output_buffer.push((old_buffer[i] + new_buffer[i]) / 2.0);
     }
     output_buffer
+}
+
+pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: f32) {
+    // reduces number of bars, but keeps frequencies
+    if bar_reduction > 0.0 {
+        let mut reduce_pos: f32 = 0.0;
+        loop {
+            if buffer.len() > reduce_pos as usize {
+                buffer.remove(reduce_pos as usize);
+            } else {
+                break;
+            }
+            reduce_pos += bar_reduction
+        }
+    }
 }

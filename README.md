@@ -2,19 +2,18 @@
 I tried to create a high resolution and classic audio visualiser with [cpal](https://github.com/RustAudio/cpal) as audio backend and [wgpu](https://github.com/gfx-rs/wgpu) as accelerated video frontend
 
 ## demo
-bar visualisation          |  string visualisation
-:-------------------------:|:-------------------------:
-![](/media/demo_bars.gif)  |  ![](/media/demo_strings.gif)
+![](/media/demo.gif)
 
 ### Supported Platforms
 I primarily work on Linux so there will be the best support, but I try to keep portability in mind
 
-Feature                 |   Windows 10  |   Linux   |   macOS   |
------------------------ | ------------- | --------- | --------- |
-DefaultAudioInputStream | Supported     | Supported | ?         |
-DesktopAudioInputStream | Supported     | Supported | ?         |
-BarVisualisation        | Supported     | Supported | Supported |
-StringVisualisation     | Supported     | Supported | Supported |
+Feature                 |   Windows 10  |   Linux       |   macOS       |
+----------------------- | ------------- | ------------- | ------------- |
+DefaultAudioInputStream | Supported     | Supported     | ?             |
+DesktopAudioInputStream | Supported     | Supported     | ?             |
+BarVisualisation        |reimplementing |reimplementing |reimplementing |
+StringVisualisation     |reimplementing |reimplementing |reimplementing |
+3DVisualisation         | Supported     | Supported     | Supported     |
 
 I am unable to test audiovis on macOS but it should just work fine.
 
@@ -23,12 +22,14 @@ It should also be possible without much work to port it over to the web but I ne
 ## Features
 ##### already implemented
 * volume control
+* 3D visualisation
 * rich configuration via config file
 * string and bar visualisation
 * configurable buffering and smoothing via config.toml
 * configurable higher scaling of lower frequencies for a better look
 * selectable amount of frequencies that should be displayed (0 - 20.000)
-* automatically selecting Desktop output-audio-stream as input-stream (not sure if it is even possible)
+* automatically selecting Desktop output-audio-stream as input-stream
+* bar texturing
 * even runs on raspberrypi 4
 
 ##### WiP
@@ -39,3 +40,6 @@ It should also be possible without much work to port it over to the web but I ne
 1. use `audiovis -g` to generate the default config as `default.config.toml` to your current directory
 2. modify said configuration, documentation should be included in the file
 3. use `audiovis -c <configuration>` to launch audiovis with your modified config
+
+## How to use microphone as input
+* just type `audiovis -i`

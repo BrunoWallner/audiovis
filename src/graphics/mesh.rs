@@ -1,76 +1,89 @@
 use crate::graphics::wgpu_abstraction::Vertex;
 
 pub fn convert_to_buffer(
-    buffer: Vec<f32>,
+    buffer: Vec<Vec<f32>>,
     visualisation: String,
     width: f32,
+    z_width: f32,
     volume_amplitude: f32,
     volume_factoring: f32,
-) -> (Vec<Vertex>, Vec<u16>)  {
+) -> (Vec<Vertex>, Vec<u32>)  {
 
     let mut vertices: Vec<Vertex> = Vec::new();
-    let mut indices: Vec<u16> = Vec::new();
-    let buffer_len = buffer.len();
-    let width: f32 = 1.0 / buffer_len as f32 *   width;
+    let mut indices: Vec<u32> = Vec::new();
 
     match visualisation.as_str() {
         "Bars" => {
-            for i in 0..buffer.len() {
-                let x = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0) + width;
-                let y: f32 = volume_amplitude * ( (buffer[i] as f32).powf(volume_factoring) * 0.05 ) - 1.0;
+            for z in 0..buffer.len() {
+                let buffer_len = buffer[z].len();
+                let width: f32 = 1.0 / buffer_len as f32 * width;
+                for i in 0..buffer[z].len() {
+                    let x = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0) + width;
+                    let mut y: f32 = volume_amplitude * ( (buffer[z][i] as f32).powf(volume_factoring) * 0.05 ) - 1.0;
+                    // max height
+                    if y > 1.0 {
+                        y = 0.0;
+                    }
+                    let mut texture_top_pos: f32 = y.powf(2.0);
+                    // to prevent texture overflow
+                    if texture_top_pos > 1.0 {
+                        texture_top_pos = 1.0;
+                    }
+                    let z: f32 = z as f32 * -z_width;
 
-                vertices.push(Vertex { position: [x - width,  -1.0, 0.1],   tex_coords:  [0.0, 1.0] });
-                vertices.push(Vertex { position: [x - width,  -1.0, 0.0],   tex_coords:  [0.0, 1.0] });
-                vertices.push(Vertex { position: [x + width,  -1.0, 0.0],   tex_coords:  [0.0, 1.0] });
-                vertices.push(Vertex { position: [x + width,  -1.0, 0.1],   tex_coords:  [1.0, 1.0] });
+                    vertices.push(Vertex { position: [x - width,  -1.0, z+z_width],   tex_coords:  [0.0, 1.0] });
+                    vertices.push(Vertex { position: [x - width,  -1.0, z],   tex_coords:  [0.0, 1.0] });
+                    vertices.push(Vertex { position: [x + width,  -1.0, z],   tex_coords:  [0.0, 1.0] });
+                    vertices.push(Vertex { position: [x + width,  -1.0, z+z_width],   tex_coords:  [1.0, 1.0] });
 
-                vertices.push(Vertex { position: [x - width,  y, 0.1],   tex_coords:  [0.0, 0.0] });
-                vertices.push(Vertex { position: [x - width,  y, 0.0],   tex_coords:  [0.0, 0.0] });
-                vertices.push(Vertex { position: [x + width,  y, 0.0],   tex_coords:  [0.0, 0.0] });
-                vertices.push(Vertex { position: [x + width,  y, 0.1],   tex_coords:  [1.0, 0.0] });
+                    vertices.push(Vertex { position: [x - width,  y, z+z_width],   tex_coords:  [0.0, texture_top_pos] });
+                    vertices.push(Vertex { position: [x - width,  y, z],   tex_coords:  [0.0, texture_top_pos] });
+                    vertices.push(Vertex { position: [x + width,  y, z],   tex_coords:  [0.0, texture_top_pos] });
+                    vertices.push(Vertex { position: [x + width,  y, z+z_width],   tex_coords:  [1.0, texture_top_pos] });
 
-                let i = vertices.len() as u16 - 8;
-                indices.push(i+0);
-                indices.push(i+7);
-                indices.push(i+4);
-                indices.push(i+0);
-                indices.push(i+3);
-                indices.push(i+7);
+                    let i = (vertices.len() - 8) as u32;
+                    indices.push(i+0);
+                    indices.push(i+7);
+                    indices.push(i+4);
+                    indices.push(i+0);
+                    indices.push(i+3);
+                    indices.push(i+7);
 
-                indices.push(i+1);
-                indices.push(i+4);
-                indices.push(i+5);
-                indices.push(i+1);
-                indices.push(i+0);
-                indices.push(i+4);
+                    indices.push(i+1);
+                    indices.push(i+4);
+                    indices.push(i+5);
+                    indices.push(i+1);
+                    indices.push(i+0);
+                    indices.push(i+4);
 
-                indices.push(i+2);
-                indices.push(i+5);
-                indices.push(i+6);
-                indices.push(i+2);
-                indices.push(i+1);
-                indices.push(i+5);
+                    indices.push(i+2);
+                    indices.push(i+5);
+                    indices.push(i+6);
+                    indices.push(i+2);
+                    indices.push(i+1);
+                    indices.push(i+5);
 
-                indices.push(i+3);
-                indices.push(i+6);
-                indices.push(i+7);
-                indices.push(i+3);
-                indices.push(i+2);
-                indices.push(i+6);
+                    indices.push(i+3);
+                    indices.push(i+6);
+                    indices.push(i+7);
+                    indices.push(i+3);
+                    indices.push(i+2);
+                    indices.push(i+6);
 
-                indices.push(i+0);
-                indices.push(i+1);
-                indices.push(i+2);
-                indices.push(i+0);
-                indices.push(i+2);
-                indices.push(i+3);
+                    indices.push(i+0);
+                    indices.push(i+1);
+                    indices.push(i+2);
+                    indices.push(i+0);
+                    indices.push(i+2);
+                    indices.push(i+3);
 
-                indices.push(i+4);
-                indices.push(i+6);
-                indices.push(i+5);
-                indices.push(i+4);
-                indices.push(i+7);
-                indices.push(i+6);
+                    indices.push(i+4);
+                    indices.push(i+6);
+                    indices.push(i+5);
+                    indices.push(i+4);
+                    indices.push(i+7);
+                    indices.push(i+6);
+                }
             }
         },
         _ => (),

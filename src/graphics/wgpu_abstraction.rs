@@ -75,6 +75,7 @@ pub struct State {
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     depth_texture: crate::graphics::texture::Texture,
+    buffer: Vec<Vec<f32>>,
 }
 impl State {
     // Creating some of the wgpu types requires async code
@@ -174,23 +175,10 @@ impl State {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let mut vertices: Vec<Vertex> = Vec::new();
+        let vertices: Vec<Vertex> = Vec::new();
 
         // must be align to 4 bytes
-        let mut indices: Vec<u16> = Vec::new();
-
-        vertices.push(Vertex { position: [-0.25, -0.25, 0.0],   tex_coords: [0.0, 1.0] });
-        vertices.push(Vertex { position: [-0.25, 0.25, 0.0],   tex_coords: [0.0, 0.0] });
-        vertices.push(Vertex { position: [0.25, 0.25, 0.0],   tex_coords: [1.0, 0.0] });
-        vertices.push(Vertex { position: [0.25, -0.25, 0.0],   tex_coords: [1.0, 1.0] });
-
-        indices.push(0);
-        indices.push(3);
-        indices.push(2);
-
-        indices.push(0);
-        indices.push(2);
-        indices.push(1);
+        let indices: Vec<u32> = Vec::new();
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -208,16 +196,20 @@ impl State {
         );
         let num_indices = indices.len() as u32;
 
+        let c = config.visual.clone();
+
         let camera = Camera {
             // position the camera one unit up and 2 units back
             // +z is out of the screen
-            eye: (0.0, 0.75, 3.5).into(),
+            //eye: (0.0, -0.35, 2.0).into(),
+            eye: c.camera_pos.into(),
             // have it look at the origin
-            target: (0.0, -0.125, 0.5).into(),
+            //target: (0.0, -0.35, 0.0).into(),
+            target: c.camera_facing.into(),
             // which way is "up"
             up: cgmath::Vector3::unit_y(),
             aspect: sc_desc.width as f32 / sc_desc.height as f32,
-            fovy: 30.0,
+            fovy: c.fov,
             znear: 0.1,
             zfar: 100.0,
         };
@@ -321,7 +313,7 @@ impl State {
             },
         });
 
-
+        let buffer: Vec<Vec<f32>> = Vec::new();
 
         Self {
             surface,
@@ -342,6 +334,7 @@ impl State {
             uniform_buffer,
             uniform_bind_group,
             depth_texture,
+            buffer,
         }
     }
 
@@ -366,19 +359,27 @@ impl State {
         if received.len() <= 0 {
             return
         }
+        self.buffer.insert(0, received);
+        if self.buffer.len() > self.config.processing.buffering as usize {
+            self.buffer.pop();
+        }
+
         let mut vertices: Vec<Vertex> = Vec::new();
-        let mut indices: Vec<u16> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
 
         // visualisation of buffer
         let (mut v, mut i) = graphics::mesh::convert_to_buffer(
-            received.clone(),
+            self.buffer.clone(),
             self.config.visual.visualisation.clone(),
             self.config.visual.width,
+            self.config.visual.z_width,
             self.config.audio.volume_amplitude,
             self.config.audio.volume_factoring,
         );
         vertices.append(&mut v);
         indices.append(&mut i);
+
+        //println!("{} - {} \t\t {} - {}", indices.len(), u16::MAX, vertices.len(), u32::MAX);
 
         self.num_indices = indices.len() as u32;
 
@@ -443,7 +444,7 @@ impl State {
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.uniform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
 
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
