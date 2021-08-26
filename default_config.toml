@@ -7,8 +7,8 @@ bottom_color= [0.0, 0.0, 0.05]
 top_color = [1.0, 0.0, 0.0]
 
 # max frequency that should be displayed, lower does not mean any saved work on cpu
-max_frequency = 20000
-width = 1.0
+max_frequency = 500
+width = 0.75
 smoothing_size = 2
 smoothing_amount = 1
 
@@ -24,15 +24,15 @@ gravity = 1.25
 
 # compensates high and low frequency volume- and space-difference, higher value means less low_frequencies and higher high_frequencies
 volume_compensation = 0.55
-frequency_compensation = 3.5
+frequency_compensation = 30.5
 
 # range of frequencies which scale should be increased
 fav_frequency_range = [1000, 5000]
-fav_frequency_doubling = 2
+fav_frequency_doubling = 0
 
 [audio]
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 0.25
+volume_amplitude = 0.15
 volume_factoring = 1.0

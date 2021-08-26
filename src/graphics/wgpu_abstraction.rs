@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::*;
 use crate::config::Config;
 use crate::graphics::camera::*;
@@ -6,8 +8,30 @@ use crate::graphics::camera::*;
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
-    pub color: [f32; 3],
+    pub tex_coords: [f32; 2], // NEW!
 }
+impl Vertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        use std::mem;
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::InputStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2, // NEW!
+                },
+            ]
+        }
+    }
+}
+
 
 // We need this for Rust to store our data correctly for the shaders
 #[repr(C)]
@@ -32,27 +56,6 @@ impl Uniforms {
     }
 }
 
-impl Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                }
-            ]
-        }
-    }
-}
-
 pub struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -66,10 +69,12 @@ pub struct State {
     num_indices: u32,
     bridge_sender: mpsc::Sender<bridge::Event>,
     config: Config,
-    camera: Camera,
+    diffuse_bind_group: wgpu::BindGroup,
+    diffuse_texture: crate::graphics::texture::Texture,
     uniforms: Uniforms,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
+    depth_texture: crate::graphics::texture::Texture,
 }
 impl State {
     // Creating some of the wgpu types requires async code
@@ -105,16 +110,87 @@ impl State {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
+        let diffuse_bytes = match std::fs::read("bar_texture.png") {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!("could not load bar_texture.png {}", e);
+                std::process::exit(1);
+            }
+        };
+
+        let diffuse_texture = crate::graphics::texture::Texture::from_bytes(&device, &queue, &diffuse_bytes, "happy-tree.png").unwrap();
+
+        let texture_bind_group_layout = device.create_bind_group_layout(
+            &wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler {
+                            // This is only for TextureSampleType::Depth
+                            comparison: false,
+                            // This should be true if the sample_type of the texture is:
+                            //     TextureSampleType::Float { filterable: true }
+                            // Otherwise you'll get an error.
+                            filtering: true,
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            }
+        );
+
+        let diffuse_bind_group = device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                layout: &texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view), // CHANGED!
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler), // CHANGED!
+                    }
+                ],
+                label: Some("diffuse_bind_group"),
+            }
+        );
+
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             flags: wgpu::ShaderFlags::all(),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let vertices: Vec<Vertex> = Vec::new();
+        let mut vertices: Vec<Vertex> = Vec::new();
 
         // must be align to 4 bytes
-        let indices: Vec<u16> = Vec::new();
+        let mut indices: Vec<u16> = Vec::new();
+
+        vertices.push(Vertex { position: [-0.25, -0.25, 0.0],   tex_coords: [0.0, 1.0] });
+        vertices.push(Vertex { position: [-0.25, 0.25, 0.0],   tex_coords: [0.0, 0.0] });
+        vertices.push(Vertex { position: [0.25, 0.25, 0.0],   tex_coords: [1.0, 0.0] });
+        vertices.push(Vertex { position: [0.25, -0.25, 0.0],   tex_coords: [1.0, 1.0] });
+
+        indices.push(0);
+        indices.push(3);
+        indices.push(2);
+
+        indices.push(0);
+        indices.push(2);
+        indices.push(1);
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -130,8 +206,7 @@ impl State {
                 usage: wgpu::BufferUsage::INDEX,
             }
         );
-        let num_indices = 0;
-
+        let num_indices = indices.len() as u32;
 
         let camera = Camera {
             // position the camera one unit up and 2 units back
@@ -186,11 +261,14 @@ impl State {
             label: Some("uniform_bind_group"),
         });
 
+        let depth_texture = crate::graphics::texture::Texture::create_depth_texture(&device, &sc_desc, "depth_texture");
+
 
         let render_pipeline_layout = device.create_pipeline_layout(
             &wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
+                    &texture_bind_group_layout,
                     &uniform_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
@@ -229,7 +307,13 @@ impl State {
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
-            depth_stencil: None, // 1.
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: crate::graphics::texture::Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less, // 1.
+                stencil: wgpu::StencilState::default(), // 2.
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1, // 2.
                 mask: !0, // 3.
@@ -252,10 +336,12 @@ impl State {
             num_indices,
             bridge_sender,
             config,
-            camera,
+            diffuse_bind_group,
+            diffuse_texture,
             uniforms,
             uniform_buffer,
             uniform_bind_group,
+            depth_texture,
         }
     }
 
@@ -264,6 +350,7 @@ impl State {
         self.sc_desc.width = new_size.width;
         self.sc_desc.height = new_size.height;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+        self.depth_texture = crate::graphics::texture::Texture::create_depth_texture(&self.device, &self.sc_desc, "depth_texture");
     }
 
     pub fn input(&mut self, _event: &WindowEvent) -> bool {
@@ -289,8 +376,6 @@ impl State {
             self.config.visual.width,
             self.config.audio.volume_amplitude,
             self.config.audio.volume_factoring,
-            self.config.visual.top_color,
-            self.config.visual.bottom_color,
         );
         vertices.append(&mut v);
         indices.append(&mut i);
@@ -344,10 +429,19 @@ impl State {
                         }
                     }
                 ],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
             });
+
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.uniform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
