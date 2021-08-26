@@ -24,17 +24,21 @@ fullscreen = false
 window_always_on_top = false
 
 [processing]
-gravity = 1.0
+gravity = 1.25
 
 # compensates high and low frequency volume- and space-difference, higher value means less low_frequencies and higher high_frequencies
-volume_compensation = 0.65
-frequency_compensation = 3.75
+volume_compensation = 0.55
+frequency_compensation = 3.5
+
+# range of frequencies which scale should be increased
+fav_frequency_range = [1000, 5000]
+fav_frequency_doubling = 2
 
 [audio]
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 0.35
+volume_amplitude = 0.25
 volume_factoring = 1.0
 ";
 
@@ -71,6 +75,8 @@ pub struct Processing {
     pub gravity: f32,
     pub volume_compensation: f32,
     pub frequency_compensation: f32,
+    pub fav_frequency_range: [u32; 2],
+    pub fav_frequency_doubling: u16,
 }
 
 pub fn generate_default_config() {
@@ -117,6 +123,12 @@ pub fn check_config(config: Config) -> Result<(), String> {
     }
     if config.visual.max_frequency > 20000 || config.visual.max_frequency < 100 {
         return Err(String::from("error at processing section, max_frequency must be in between of 100 and 20.000"))
+    }
+    if p.gravity < 0.0 {
+        return Err(String::from("error at processing section, gravity must be greater than 0.0"))
+    }
+    if p.frequency_compensation < 2.1 {
+        return Err(String::from("error at processing section, frequency_compensation must be greater than 2.1"))
     }
 
     Ok(())

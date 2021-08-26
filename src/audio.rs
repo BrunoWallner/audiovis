@@ -68,7 +68,7 @@ fn err_fn(err: cpal::StreamError) {
     eprintln!("an error occurred on stream: {}", err);
 }
 
-// most cpu intensive parts down here
+// most cpu intensive parts down here, could probably be improved
 
 fn apodize(buffer: Vec<f32>) -> Vec<f32> {
     let window = apodize::hanning_iter(buffer.len()).collect::<Vec<f64>>();
@@ -108,7 +108,13 @@ pub fn convert_buffer(
         output_buffer.push(buffer[i].norm())
     }
     // *0.425 to cut off unwanted vector information that just mirrors itself and trims to exactly 20khz
-    let mut output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.455) as usize].to_vec();
+    let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.455) as usize].to_vec();
+
+    // max frequency
+    let percentage: f32 = config.visual.max_frequency as f32 / 20000.0;
+    let mut output_buffer = output_buffer[0..(output_buffer.len() as f32 * percentage) as usize].to_vec();
+
+    scale_fav_frequencies(&mut output_buffer, config.processing.fav_frequency_range, config.processing.fav_frequency_doubling);
 
     // volume compensation
     let buffer_len = output_buffer.len();
@@ -117,12 +123,30 @@ pub fn convert_buffer(
         let amount: f32 = 0.1 / percentage.powf(config.processing.volume_compensation);
         output_buffer[i] /= amount;
     }
-    // max frequency
-    let percentage: f32 = config.visual.max_frequency as f32 / 20000.0;
-    let mut output_buffer = output_buffer[0..(output_buffer.len() as f32 * percentage) as usize].to_vec();
 
     compensate_frequencies(&mut output_buffer, config.processing.frequency_compensation);
     output_buffer
+}
+
+fn scale_fav_frequencies(buffer: &mut Vec<f32>, fav_freqs: [u32; 2], doubling: u16) {
+    let mut doubled: u32 = 0;
+    for _ in 0..doubling {
+        let start_percentage: f32 = fav_freqs[0] as f32 / 20_000.0;
+        let start_pos: usize = (buffer.len() as f32 * start_percentage) as usize;
+
+        let end_percentage: f32 = fav_freqs[1] as f32 / 20_000.0;
+        let end_pos: usize = (buffer.len() as f32 * end_percentage) as usize + doubled as usize;
+
+        let mut position: usize = start_pos;
+        for _ in start_pos..end_pos {
+            if position < buffer.len() - 1 {
+                let value: f32 = (buffer[position] + buffer[position + 1]) / 2.0;
+                buffer.insert(position + 1, value);
+                position += 2;
+                doubled += 1;
+            }
+        }
+    }
 }
 
 fn compensate_frequencies(buffer: &mut Vec<f32>, compensation: f32) {

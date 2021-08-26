@@ -17,7 +17,7 @@ pub fn init(
             Ok(event) => match event {
                 Event::Push(mut n) => {
                     n = smooth_buffer(buffer.clone(), n.clone());
-                    buffer = buffer_gravity(buffer, n, config.processing.gravity + 1.0)
+                    buffer = buffer_gravity(buffer, n, (config.processing.gravity * 0.25 ) + 1.0)
                 }
                 Event::Consume(sender) => {
                     sender.send(buffer.clone()).unwrap();
