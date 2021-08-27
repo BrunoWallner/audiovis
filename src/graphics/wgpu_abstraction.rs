@@ -370,11 +370,14 @@ impl State {
         // visualisation of buffer
         let (mut v, mut i) = graphics::mesh::convert_to_buffer(
             self.buffer.clone(),
-            self.config.visual.visualisation.clone(),
             self.config.visual.width,
             self.config.visual.z_width,
             self.config.audio.volume_amplitude,
             self.config.audio.volume_factoring,
+            self.config.processing.experimental_multithreaded_mesh_gen,
+            self.config.processing.buffer_resolution_drop,
+            self.config.processing.max_buffer_resolution_drop,
+            self.config.processing.buffer_resolution_drop_z_factoring,
         );
         vertices.append(&mut v);
         indices.append(&mut i);

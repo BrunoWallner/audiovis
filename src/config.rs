@@ -7,16 +7,18 @@ const DEFAULT_CONFIG: &str =
 # valid arguments: ['Bars', 'Strings']
 visualisation = 'Bars'
 
-camera_pos = [0.0, -0.25, 6.0]
+camera_pos = [0.0, -0.5, 6.25]
 camera_facing = [0.0, -0.25, 0.0]
 fov = 15
 
+
 # max frequency that should be displayed, lower does not mean any saved work on cpu
-max_frequency = 15000
+max_frequency = 20000
 width = 1.0
 z_width = 0.2
-smoothing_size = 3
-smoothing_amount = 1
+
+smoothing_size = 10
+smoothing_amount = 5
 
 # hides the cursor if hovered over audiovis window
 hide_cursor = false
@@ -29,25 +31,31 @@ window_always_on_top = false
 gravity = 1.25
 
 # compensates high and low frequency volume- and space-difference, higher value means less low_frequencies and higher high_frequencies
-volume_compensation = 0.55
+volume_compensation = 0.5
 frequency_compensation = 3.5
 
 # range of frequencies which scale should be increased
-fav_frequency_range = [1000, 5000]
+fav_frequency_range = [1000, 2000]
 fav_frequency_doubling = 2
 
-# how many buffers should be saved and displayed
-buffering = 20
+# how many buffers should be saved and displayed in 3D
+buffering = 50
 
-# less value means more reduction, 0.0 to disable
-bar_reduction = 0.75
+# halfes the scale x times
+bar_reduction = 0
 
+# not really working rn
+experimental_multithreaded_mesh_gen = false
+
+buffer_resolution_drop = 5.0
+buffer_resolution_drop_z_factoring = 0.75
+max_buffer_resolution_drop = 10
 
 [audio]
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 0.25
+volume_amplitude = 0.5
 volume_factoring = 1.0
 ";
 
@@ -89,7 +97,11 @@ pub struct Processing {
     pub fav_frequency_range: [u32; 2],
     pub fav_frequency_doubling: u16,
     pub buffering: u32,
-    pub bar_reduction: f32,
+    pub bar_reduction: u32,
+    pub experimental_multithreaded_mesh_gen: bool,
+    pub buffer_resolution_drop: f32,
+    pub buffer_resolution_drop_z_factoring: f32,
+    pub max_buffer_resolution_drop: u16,
 }
 
 pub fn generate_default_config() {

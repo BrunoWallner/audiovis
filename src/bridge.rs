@@ -16,7 +16,7 @@ pub fn init(
         match receiver.recv() {
             Ok(event) => match event {
                 Event::Push(mut n) => {
-                    n = smooth_buffer(buffer.clone(), n.clone());
+                    n = smooth_buffer(buffer.clone(), n.clone(), config.visual.smoothing_amount, config.visual.smoothing_size);
                     bar_reduction(&mut n, config.processing.bar_reduction);
                     buffer = buffer_gravity(buffer, n, (config.processing.gravity * 0.25 ) + 1.0)
                 }
@@ -57,6 +57,8 @@ fn buffer_gravity(
 fn smooth_buffer(
     mut old_buffer: Vec<f32>,
     new_buffer: Vec<f32>,
+    smoothing: u32,
+    smoothing_size: u32,
 ) -> Vec<f32> {
     let mut output_buffer: Vec<f32> = Vec::new();
     let difference: i32 = new_buffer.len() as i32 - old_buffer.len() as i32;
@@ -68,20 +70,30 @@ fn smooth_buffer(
     for i in 0..new_buffer.len() {
         output_buffer.push((old_buffer[i] + new_buffer[i]) / 2.0);
     }
+    for _ in 0..smoothing {
+        for i in 0..output_buffer.len() - smoothing_size as usize {
+            let mut y = 0.0;
+            for x in 0..smoothing_size as usize {
+                y += output_buffer[i+x];
+            }
+            output_buffer[i] = y / smoothing_size as f32;
+        }
+    }
     output_buffer
 }
 
-pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: f32) {
+pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: u32) {
     // reduces number of bars, but keeps frequencies
-    if bar_reduction > 0.0 {
-        let mut reduce_pos: f32 = 0.0;
+    for _ in 0..bar_reduction {
+        let mut pos: usize = 1;
         loop {
-            if buffer.len() > reduce_pos as usize {
-                buffer.remove(reduce_pos as usize);
+            if buffer.len() > pos {
+                buffer[pos] = (buffer[pos-1] + buffer[pos]) / 2.0;
+                buffer.remove(pos);
+                pos += 2;
             } else {
                 break;
             }
-            reduce_pos += bar_reduction
         }
     }
 }
