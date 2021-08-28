@@ -359,30 +359,22 @@ impl State {
         if received.len() <= 0 {
             return
         }
-        self.buffer.insert(0, received);
-        if self.buffer.len() > self.config.processing.buffering as usize {
-            self.buffer.pop();
-        }
 
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut indices: Vec<u32> = Vec::new();
 
         // visualisation of buffer
         let (mut v, mut i) = graphics::mesh::convert_to_buffer(
-            self.buffer.clone(),
+            received,
             self.config.visual.width,
             self.config.visual.z_width,
             self.config.audio.volume_amplitude,
             self.config.audio.volume_factoring,
             self.config.processing.experimental_multithreaded_mesh_gen,
-            self.config.processing.buffer_resolution_drop,
-            self.config.processing.max_buffer_resolution_drop,
-            self.config.processing.buffer_resolution_drop_z_factoring,
         );
         vertices.append(&mut v);
         indices.append(&mut i);
 
-        //println!("{} - {} \t\t {} - {}", indices.len(), u16::MAX, vertices.len(), u32::MAX);
 
         self.num_indices = indices.len() as u32;
 

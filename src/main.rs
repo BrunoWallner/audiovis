@@ -68,6 +68,7 @@ fn main() {
     let (bridge_sender, bridge_receiver) = mpsc::channel();
     bridge::init(
         bridge_receiver,
+        bridge_sender.clone(),
         config.clone(),
     );
     audio::stream_input(

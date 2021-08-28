@@ -3,26 +3,46 @@ use std::thread;
 use crate::config::Config;
 
 pub enum Event {
+    PushReduced(Vec<Vec<f32>>),
     Push(Vec<f32>),
-    Consume(mpsc::Sender<Vec<f32>>),
+    Consume(mpsc::Sender<Vec<Vec<f32>>>),
 }
 
 pub fn init(
     receiver: mpsc::Receiver<Event>,
+    sender: mpsc::Sender<Event>,
     config: Config,
 ) {
-    let mut buffer: Vec<f32> = Vec::new();
+    let mut reduced_buffer: Vec<Vec<f32>> = Vec::new();
+    let mut buffer: Vec<Vec<f32>> = Vec::new();
+    let mut smoothing_buffer: Vec<f32> = Vec::new();
     thread::spawn(move || loop {
         match receiver.recv() {
             Ok(event) => match event {
                 Event::Push(mut n) => {
                     bar_reduction(&mut n, config.processing.bar_reduction);
-                    n = smooth_buffer(buffer.clone(), n.clone(), config.visual.smoothing_amount, config.visual.smoothing_size);
-                    n = buffer_gravity(buffer, n, (config.processing.gravity * 0.25 ) + 1.0);
-                    buffer = n;
+                    if buffer.len() > 0 {
+                        n = smooth_buffer(smoothing_buffer.clone(), n.clone(), config.visual.smoothing_amount, config.visual.smoothing_size);
+                        n = buffer_gravity(smoothing_buffer.clone(), n, (config.processing.gravity * 0.25 ) + 1.0);
+                    }
+                    smoothing_buffer = n.clone();
+                    buffer.insert(0, n);
+                    if buffer.len() > config.processing.buffering as usize {
+                        buffer.pop();
+                    }
+                    let mut buffer = buffer.clone();
+                    let config = config.clone();
+                    let sender = sender.clone();
+                    thread::spawn(move || {
+                        reduce_buffer(&mut buffer, config.processing.buffer_resolution_drop, config.processing.max_buffer_resolution_drop);
+                        sender.send(Event::PushReduced(buffer)).unwrap();
+                    });
                 }
                 Event::Consume(sender) => {
-                    sender.send(buffer.clone()).unwrap();
+                    sender.send(reduced_buffer.clone()).unwrap();
+                }
+                Event::PushReduced(rb) => {
+                    reduced_buffer = rb;
                 }
             },
             Err(e) => eprintln!(
@@ -97,6 +117,32 @@ pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: u32) {
                 pos += 2;
             } else {
                 break;
+            }
+        }
+    }
+}
+
+fn reduce_buffer(buffer: &mut Vec<Vec<f32>>, resolution_drop: f32, max_res_drop: u16) {
+    for z in 0..buffer.len() {
+        if resolution_drop > 0.0 {
+            let mut amount = (z as f32 * resolution_drop * 0.1) as usize;
+            if amount > max_res_drop as usize {
+                amount = max_res_drop as usize;
+            }
+            for _ in 0..amount {
+                let mut pos: usize = 1; // potential shifting but idk
+                loop {
+                    if buffer[z].len() > pos + 1 {
+                        if buffer[z][pos] < buffer[z][pos+1] {
+                            buffer[z].remove(pos);
+                        } else {
+                            buffer[z].remove(pos+1);
+                        }
+                        pos += 2;
+                    } else {
+                        break;
+                    }
+                }
             }
         }
     }

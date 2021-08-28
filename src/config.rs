@@ -7,7 +7,7 @@ const DEFAULT_CONFIG: &str =
 # valid arguments: ['Bars', 'Strings']
 visualisation = 'Bars'
 
-camera_pos = [0.0, -0.5, 6.25]
+camera_pos = [0.0, 0.25, 6.25]
 camera_facing = [0.0, -0.25, 0.0]
 fov = 15
 
@@ -44,17 +44,16 @@ buffering = 100
 bar_reduction = 5
 
 # not really working rn
-experimental_multithreaded_mesh_gen = false
+experimental_multithreaded_mesh_gen = 1
 
 buffer_resolution_drop = 0.2
-buffer_resolution_drop_z_factoring = 1.0
 max_buffer_resolution_drop = 6
 
 [audio]
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 0.5
+volume_amplitude = 0.35
 volume_factoring = 1.0
 ";
 
@@ -97,9 +96,8 @@ pub struct Processing {
     pub fav_frequency_doubling: u16,
     pub buffering: u32,
     pub bar_reduction: u32,
-    pub experimental_multithreaded_mesh_gen: bool,
+    pub experimental_multithreaded_mesh_gen: u32,
     pub buffer_resolution_drop: f32,
-    pub buffer_resolution_drop_z_factoring: f32,
     pub max_buffer_resolution_drop: u16,
 }
 
