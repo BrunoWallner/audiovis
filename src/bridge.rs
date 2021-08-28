@@ -16,9 +16,10 @@ pub fn init(
         match receiver.recv() {
             Ok(event) => match event {
                 Event::Push(mut n) => {
-                    n = smooth_buffer(buffer.clone(), n.clone(), config.visual.smoothing_amount, config.visual.smoothing_size);
                     bar_reduction(&mut n, config.processing.bar_reduction);
-                    buffer = buffer_gravity(buffer, n, (config.processing.gravity * 0.25 ) + 1.0)
+                    n = smooth_buffer(buffer.clone(), n.clone(), config.visual.smoothing_amount, config.visual.smoothing_size);
+                    n = buffer_gravity(buffer, n, (config.processing.gravity * 0.25 ) + 1.0);
+                    buffer = n;
                 }
                 Event::Consume(sender) => {
                     sender.send(buffer.clone()).unwrap();
@@ -85,11 +86,14 @@ fn smooth_buffer(
 pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: u32) {
     // reduces number of bars, but keeps frequencies
     for _ in 0..bar_reduction {
-        let mut pos: usize = 1;
+        let mut pos: usize = 0;
         loop {
-            if buffer.len() > pos {
-                buffer[pos] = (buffer[pos-1] + buffer[pos]) / 2.0;
-                buffer.remove(pos);
+            if buffer.len() > pos + 1 {
+                if buffer[pos] < buffer[pos+1] {
+                    buffer.remove(pos);
+                } else {
+                    buffer.remove(pos+1);
+                }
                 pos += 2;
             } else {
                 break;

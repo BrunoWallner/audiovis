@@ -24,11 +24,14 @@ pub fn convert_to_buffer(
                     amount = max_res_drop as usize;
                 }
                 for _ in 0..amount {
-                    let mut pos: usize = 1;
+                    let mut pos: usize = 1; // potential shifting but idk
                     loop {
-                        if buffer[z].len() > pos {
-                            buffer[z][pos] = (buffer[z][pos-1] + buffer[z][pos]) / 1.75; // /1.75 because smoothing lowers volume
-                            buffer[z].remove(pos);
+                        if buffer[z].len() > pos + 1 {
+                            if buffer[z][pos] < buffer[z][pos+1] {
+                                buffer[z].remove(pos);
+                            } else {
+                                buffer[z].remove(pos+1);
+                            }
                             pos += 2;
                         } else {
                             break;
@@ -41,14 +44,17 @@ pub fn convert_to_buffer(
             let width: f32 = 1.0 / buffer_len as f32 * width;
             for i in 0..buffer_len {
                 let x = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0) + width;
-                let mut y: f32 = volume_amplitude * ( (buffer[z][i] as f32).powf(volume_factoring) * 0.01 ) - 1.0;
+                let mut y: f32 = volume_amplitude * ( (buffer[z][i] as f32).powf(volume_factoring) * 0.01 );
                 // max height important because texture overflow could appear
-                if y > 0.0 {
-                    y = 0.0;
+                if y > 1.0 {
+                    y = 1.0;
                 }
-                let texture_top_pos: f32 = 1.0 - ((y + 1.0) * 0.5);
+                let texture_top_pos: f32 = 1.0 - (y * 0.25);
                 let z_orig = z;
                 let z: f32 = z as f32 * -z_width;
+
+                y *= 2.0;
+                y -= 1.0;
 
                 if z_orig == 0 {
                     vertices.append(&mut [

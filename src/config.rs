@@ -17,8 +17,8 @@ max_frequency = 20000
 width = 1.0
 z_width = 0.2
 
-smoothing_size = 10
-smoothing_amount = 5
+smoothing_size = 0
+smoothing_amount = 0
 
 # hides the cursor if hovered over audiovis window
 hide_cursor = false
@@ -35,21 +35,20 @@ volume_compensation = 0.5
 frequency_compensation = 3.5
 
 # range of frequencies which scale should be increased
-fav_frequency_range = [1000, 2000]
-fav_frequency_doubling = 2
-
+fav_frequency_range = [400, 2000]
+fav_frequency_doubling = 3
 # how many buffers should be saved and displayed in 3D
-buffering = 50
+buffering = 100
 
 # halfes the scale x times
-bar_reduction = 0
+bar_reduction = 5
 
 # not really working rn
 experimental_multithreaded_mesh_gen = false
 
-buffer_resolution_drop = 5.0
-buffer_resolution_drop_z_factoring = 0.75
-max_buffer_resolution_drop = 10
+buffer_resolution_drop = 0.2
+buffer_resolution_drop_z_factoring = 1.0
+max_buffer_resolution_drop = 6
 
 [audio]
 # should improve quality
