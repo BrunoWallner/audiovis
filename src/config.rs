@@ -4,8 +4,7 @@ use serde::{Deserialize};
 const DEFAULT_CONFIG: &str =
 "
 [visual]
-# valid arguments: ['Bars', 'Strings']
-visualisation = 'Bars'
+texture = 'default'
 
 camera_pos = [0.0, 0.25, 6.25]
 camera_facing = [0.0, -0.25, 0.0]
@@ -67,7 +66,6 @@ pub struct Config {
 
 #[derive(Deserialize, Clone)]
 pub struct Visual {
-    pub visualisation: String,
     pub smoothing_size: u32,
     pub smoothing_amount: u32,
     pub max_frequency: u32,
@@ -79,6 +77,7 @@ pub struct Visual {
     pub camera_pos: [f32; 3],
     pub camera_facing: [f32; 3],
     pub fov: f32,
+    pub texture: String,
 }
 
 #[derive(Deserialize, Clone)]
@@ -136,11 +135,6 @@ pub fn get_config(path: &str) -> Result<Config, String> {
 
 pub fn check_config(config: Config) -> Result<(), String> {
     let p = config.processing;
-    match config.visual.visualisation.as_str() {
-        "Bars" => (),
-        "Strings" => (),
-        _ => return Err(String::from("error at visual section, invalid visualisation type. Possible types are: 'Bars' and 'Strings'")),
-    }
     if p.gravity < 0.0 {
         return Err(String::from("error at processing section, max value for buffering is 100"))
     }

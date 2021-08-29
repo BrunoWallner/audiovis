@@ -15,6 +15,8 @@ BarVisualisation        |reimplementing |reimplementing |reimplementing |
 StringVisualisation     |reimplementing |reimplementing |reimplementing |
 3DVisualisation         | Supported     | Supported     | Supported     |
 
+String- and BarVisualisation are still available in the legacy branch
+
 I am unable to test audiovis on macOS but it should just work fine.
 
 It should also be possible without much work to port it over to the web but I never did something like this.
@@ -42,8 +44,8 @@ It should also be possible without much work to port it over to the web but I ne
 3. use `audiovis -c <configuration>` to launch audiovis with your modified config
 
 ## How to customize bar-texture
-1. create a new picture with any height and 1 pixel width
-2. the bottom half corresponds to the bars in the background and the upper half to the bars in the foreground
+1. create a new picture with any height and width
+2. the left pixels correspond the the front bars and the right to the bars further away
 3. create a color transition in any image manipulation tool, I use krita, which works perfectly for this
 
 ## How to use microphone as input

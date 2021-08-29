@@ -46,38 +46,26 @@ pub fn from_buffer(
                 if y > 1.0 {
                     y = 1.0;
                 }
-                let texture_top_pos: f32 = 1.0 - (y * 0.5);
-                let z_orig = z;
+                let t_t_p: f32 = 1.0 - y; // texture_top_pos
+                let t_l_p: f32 = z as f32 / buffer.len() as f32;
+                let t_r_p: f32 = (z + 1) as f32 / buffer.len() as f32;
                 let z: f32 = z as f32 * -z_width;
 
                 y *= 2.0;
                 y -= 1.0;
 
-                if z_orig == 0 {
-                    vertices.append(&mut [
-                        Vertex { position: [x - width,  -1.0, z+z_width],   tex_coords:  [0.0, 0.5] },
-                        Vertex { position: [x - width,  -1.0, z],   tex_coords:  [0.0, 0.5] },
-                        Vertex { position: [x + width,  -1.0, z],   tex_coords:  [0.0, 0.5] },
-                        Vertex { position: [x + width,  -1.0, z+z_width],   tex_coords:  [1.0, 0.5] },
 
-                        Vertex { position: [x - width,  y, z+z_width],   tex_coords:  [0.0, texture_top_pos - 0.5] },
-                        Vertex { position: [x - width,  y, z],   tex_coords:  [0.0, texture_top_pos - 0.5] },
-                        Vertex { position: [x + width,  y, z],   tex_coords:  [0.0, texture_top_pos - 0.5] },
-                        Vertex { position: [x + width,  y, z+z_width],   tex_coords:  [1.0, texture_top_pos - 0.5] },
-                    ].to_vec());
-                } else {
-                    vertices.append(&mut [
-                        Vertex { position: [x - width,  -1.0, z+z_width],   tex_coords:  [0.0, 1.0] },
-                        Vertex { position: [x - width,  -1.0, z],   tex_coords:  [0.0, 1.0] },
-                        Vertex { position: [x + width,  -1.0, z],   tex_coords:  [0.0, 1.0] },
-                        Vertex { position: [x + width,  -1.0, z+z_width],   tex_coords:  [1.0, 1.0] },
+                vertices.append(&mut [
+                    Vertex { position: [x - width,  -1.0, z+z_width],   tex_coords:  [t_r_p, 1.0] },
+                    Vertex { position: [x - width,  -1.0, z],           tex_coords:  [t_l_p, 1.0] },
+                    Vertex { position: [x + width,  -1.0, z],           tex_coords:  [t_l_p, 1.0] },
+                    Vertex { position: [x + width,  -1.0, z+z_width],   tex_coords:  [t_r_p, 1.0] },
 
-                        Vertex { position: [x - width,  y, z+z_width],   tex_coords:  [0.0, texture_top_pos] },
-                        Vertex { position: [x - width,  y, z],   tex_coords:  [0.0, texture_top_pos] },
-                        Vertex { position: [x + width,  y, z],   tex_coords:  [0.0, texture_top_pos] },
-                        Vertex { position: [x + width,  y, z+z_width],   tex_coords:  [1.0, texture_top_pos] },
-                    ].to_vec());
-                }
+                    Vertex { position: [x - width,  y, z+z_width],      tex_coords:  [t_r_p, t_t_p] },
+                    Vertex { position: [x - width,  y, z],              tex_coords:  [t_l_p, t_t_p] },
+                    Vertex { position: [x + width,  y, z],              tex_coords:  [t_l_p, t_t_p] },
+                    Vertex { position: [x + width,  y, z+z_width],      tex_coords:  [t_r_p, t_t_p] },
+                ].to_vec());
 
                 let i = (vertices.len() - 8) as u32;
                 indices.append(&mut [

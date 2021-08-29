@@ -64,6 +64,20 @@ fn main() {
         }
     };
 
+    let default_bar_texture = include_bytes!("bar_texture.png");
+    let bar_texture = match config.visual.texture.as_str() {
+        "default" => {default_bar_texture.to_vec()},
+        other => {
+            match std::fs::read(other) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprintln!("could not load bar_texture.png {}, falling back to default texture", e);
+                    default_bar_texture.to_vec()
+                }
+            }
+        }
+    };
+
     // initiates communication bridge between audio input and wgpu
     let (bridge_sender, bridge_receiver) = mpsc::channel();
     bridge::init(
@@ -89,6 +103,7 @@ fn main() {
         &window,
         bridge_sender.clone(),
         config.clone(),
+        bar_texture,
     ));
 
     if config.visual.fullscreen {

@@ -79,7 +79,7 @@ pub struct State {
 }
 impl State {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, config: Config) -> Self {
+    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, config: Config, bar_texture: Vec<u8>) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -111,6 +111,7 @@ impl State {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
+        /*
         let diffuse_bytes = match std::fs::read("bar_texture.png") {
             Ok(b) => b,
             Err(e) => {
@@ -118,8 +119,9 @@ impl State {
                 std::process::exit(1);
             }
         };
+        */
 
-        let diffuse_texture = crate::graphics::texture::Texture::from_bytes(&device, &queue, &diffuse_bytes, "happy-tree.png").unwrap();
+        let diffuse_texture = crate::graphics::texture::Texture::from_bytes(&device, &queue, &bar_texture, "bar_texture").unwrap();
 
         let texture_bind_group_layout = device.create_bind_group_layout(
             &wgpu::BindGroupLayoutDescriptor {
