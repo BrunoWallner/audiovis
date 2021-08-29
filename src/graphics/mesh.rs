@@ -2,14 +2,28 @@ use crate::graphics::wgpu_abstraction::Vertex;
 use std::thread;
 use std::sync::mpsc;
 
-pub fn convert_to_buffer(
+#[derive(Clone, Debug)]
+pub struct Mesh {
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
+}
+impl Mesh {
+    pub fn new() -> Self {
+        Self {
+            vertices: Vec::new(),
+            indices: Vec::new(),
+        }
+    }
+}
+
+pub fn from_buffer(
     buffer: Vec<Vec<f32>>,
     width: f32,
     z_width: f32,
     volume_amplitude: f32,
     volume_factoring: f32,
     multithreaded: u32,
-) -> (Vec<Vertex>, Vec<u32>)  {
+) -> Mesh  {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut indices: Vec<u32> = Vec::new();
 
@@ -255,7 +269,7 @@ pub fn convert_to_buffer(
             indices.append(&mut i);
         }
     }
-    return (vertices, indices);
+    return Mesh {vertices, indices};
 }
 
 

@@ -354,41 +354,21 @@ impl State {
         let (tx, rc) = mpsc::channel();
         self.bridge_sender.send(bridge::Event::Consume(tx)).unwrap();
 
-        let received = rc.recv().unwrap();
+        let r = rc.recv().unwrap();
 
-        if received.len() <= 0 {
-            return
-        }
-
-        let mut vertices: Vec<Vertex> = Vec::new();
-        let mut indices: Vec<u32> = Vec::new();
-
-        // visualisation of buffer
-        let (mut v, mut i) = graphics::mesh::convert_to_buffer(
-            received,
-            self.config.visual.width,
-            self.config.visual.z_width,
-            self.config.audio.volume_amplitude,
-            self.config.audio.volume_factoring,
-            self.config.processing.experimental_multithreaded_mesh_gen,
-        );
-        vertices.append(&mut v);
-        indices.append(&mut i);
-
-
-        self.num_indices = indices.len() as u32;
+        self.num_indices = r.indices.len() as u32;
 
         let vertex_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
+                contents: bytemuck::cast_slice(&r.vertices),
                 usage: wgpu::BufferUsage::VERTEX,
             }
         );
         let index_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&indices),
+                contents: bytemuck::cast_slice(&r.indices),
                 usage: wgpu::BufferUsage::INDEX,
             }
         );

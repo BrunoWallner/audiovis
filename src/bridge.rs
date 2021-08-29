@@ -1,11 +1,12 @@
 use std::sync::mpsc;
 use std::thread;
 use crate::config::Config;
+use crate::graphics::mesh;
 
 pub enum Event {
-    PushReduced(Vec<Vec<f32>>),
+    PushMesh(mesh::Mesh),
     Push(Vec<f32>),
-    Consume(mpsc::Sender<Vec<Vec<f32>>>),
+    Consume(mpsc::Sender<mesh::Mesh>),
 }
 
 pub fn init(
@@ -13,8 +14,8 @@ pub fn init(
     sender: mpsc::Sender<Event>,
     config: Config,
 ) {
-    let mut reduced_buffer: Vec<Vec<f32>> = Vec::new();
     let mut buffer: Vec<Vec<f32>> = Vec::new();
+    let mut mesh: mesh::Mesh = mesh::Mesh::new();
     let mut smoothing_buffer: Vec<f32> = Vec::new();
     thread::spawn(move || loop {
         match receiver.recv() {
@@ -22,7 +23,7 @@ pub fn init(
                 Event::Push(mut n) => {
                     bar_reduction(&mut n, config.processing.bar_reduction);
                     if buffer.len() > 0 {
-                        n = smooth_buffer(smoothing_buffer.clone(), n.clone(), config.visual.smoothing_amount, config.visual.smoothing_size);
+                        smooth_buffer(&mut n.clone(), config.visual.smoothing_amount, config.visual.smoothing_size);
                         n = buffer_gravity(smoothing_buffer.clone(), n, (config.processing.gravity * 0.25 ) + 1.0);
                     }
                     smoothing_buffer = n.clone();
@@ -35,14 +36,23 @@ pub fn init(
                     let sender = sender.clone();
                     thread::spawn(move || {
                         reduce_buffer(&mut buffer, config.processing.buffer_resolution_drop, config.processing.max_buffer_resolution_drop);
-                        sender.send(Event::PushReduced(buffer)).unwrap();
+                        let mesh = mesh::from_buffer(
+                            buffer,
+                            config.visual.width,
+                            config.visual.z_width,
+                            config.audio.volume_amplitude,
+                            config.audio.volume_factoring,
+                            config.processing.experimental_multithreaded_mesh_gen,
+                        );
+                        sender.send(Event::PushMesh(mesh)).unwrap();
                     });
                 }
                 Event::Consume(sender) => {
-                    sender.send(reduced_buffer.clone()).unwrap();
+                    //sender.send(reduced_buffer.clone()).unwrap();
+                    sender.send(mesh.clone()).unwrap();
                 }
-                Event::PushReduced(rb) => {
-                    reduced_buffer = rb;
+                Event::PushMesh(m) => {
+                    mesh = m;
                 }
             },
             Err(e) => eprintln!(
@@ -76,31 +86,19 @@ fn buffer_gravity(
 }
 
 fn smooth_buffer(
-    mut old_buffer: Vec<f32>,
-    new_buffer: Vec<f32>,
+    buffer: &mut Vec<f32>,
     smoothing: u32,
     smoothing_size: u32,
-) -> Vec<f32> {
-    let mut output_buffer: Vec<f32> = Vec::new();
-    let difference: i32 = new_buffer.len() as i32 - old_buffer.len() as i32;
-    if difference > 0 {
-        for _ in 0..difference {
-            old_buffer.push(0.0);
-        }
-    }
-    for i in 0..new_buffer.len() {
-        output_buffer.push((old_buffer[i] + new_buffer[i]) / 2.0);
-    }
+) {
     for _ in 0..smoothing {
-        for i in 0..output_buffer.len() - smoothing_size as usize {
+        for i in 0..buffer.len() - smoothing_size as usize {
             let mut y = 0.0;
             for x in 0..smoothing_size as usize {
-                y += output_buffer[i+x];
+                y += buffer[i+x];
             }
-            output_buffer[i] = y / smoothing_size as f32;
+            buffer[i] = y / smoothing_size as f32;
         }
     }
-    output_buffer
 }
 
 pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: u32) {

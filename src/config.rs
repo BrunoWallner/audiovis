@@ -42,13 +42,13 @@ fav_frequency_doubling = 3
 buffering = 100
 
 # halfes the scale x times
-bar_reduction = 9
+bar_reduction = 6
 
 # not really working rn
 experimental_multithreaded_mesh_gen = 1
 
-buffer_resolution_drop = 0.2
-max_buffer_resolution_drop = 4
+buffer_resolution_drop = 0.25
+max_buffer_resolution_drop = 7
 
 [audio]
 # should improve quality
