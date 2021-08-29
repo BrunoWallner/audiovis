@@ -41,5 +41,10 @@ It should also be possible without much work to port it over to the web but I ne
 2. modify said configuration, documentation should be included in the file
 3. use `audiovis -c <configuration>` to launch audiovis with your modified config
 
+## How to customize bar-texture
+1. create a new picture with any height and 1 pixel width
+2. the bottom half corresponds to the bars in the background and the upper half to the bars in the foreground
+3. create a color transition in any image manipulation tool, I use krita, which works perfectly for this
+
 ## How to use microphone as input
 * just type `audiovis -i`

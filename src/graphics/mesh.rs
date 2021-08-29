@@ -32,7 +32,7 @@ pub fn convert_to_buffer(
                 if y > 1.0 {
                     y = 1.0;
                 }
-                let texture_top_pos: f32 = 1.0 - (y * 0.25);
+                let texture_top_pos: f32 = 1.0 - (y * 0.5);
                 let z_orig = z;
                 let z: f32 = z as f32 * -z_width;
 
@@ -156,7 +156,7 @@ pub fn convert_to_buffer(
                         if y > 1.0 {
                             y = 1.0;
                         }
-                        let texture_top_pos: f32 = 1.0 - (y * 0.25);
+                        let texture_top_pos: f32 = 1.0 - (y * 0.5);
                         let z_orig = z;
                         let z: f32 = z as f32 * -z_width;
 

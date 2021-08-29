@@ -31,29 +31,30 @@ window_always_on_top = false
 gravity = 1.25
 
 # compensates high and low frequency volume- and space-difference, higher value means less low_frequencies and higher high_frequencies
-volume_compensation = 0.5
-frequency_compensation = 3.5
+volume_compensation = 0.45
+frequency_compensation = 3.25
 
 # range of frequencies which scale should be increased
-fav_frequency_range = [400, 2000]
+fav_frequency_range = [500, 2500]
 fav_frequency_doubling = 3
+
 # how many buffers should be saved and displayed in 3D
 buffering = 100
 
 # halfes the scale x times
-bar_reduction = 5
+bar_reduction = 9
 
 # not really working rn
 experimental_multithreaded_mesh_gen = 1
 
 buffer_resolution_drop = 0.2
-max_buffer_resolution_drop = 6
+max_buffer_resolution_drop = 4
 
 [audio]
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 0.35
+volume_amplitude = 0.25
 volume_factoring = 1.0
 ";
 
