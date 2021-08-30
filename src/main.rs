@@ -64,7 +64,7 @@ fn main() {
         }
     };
 
-    let default_bar_texture = include_bytes!("bar_texture.png");
+    let default_bar_texture = include_bytes!("default_bar_texture.png");
     let bar_texture = match config.visual.texture.as_str() {
         "default" => {default_bar_texture.to_vec()},
         other => {

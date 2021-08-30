@@ -56,15 +56,15 @@ pub fn from_buffer(
 
 
                 vertices.append(&mut [
-                    Vertex { position: [x - width,  -1.0, z+z_width],   tex_coords:  [t_r_p, 1.0] },
-                    Vertex { position: [x - width,  -1.0, z],           tex_coords:  [t_l_p, 1.0] },
-                    Vertex { position: [x + width,  -1.0, z],           tex_coords:  [t_l_p, 1.0] },
-                    Vertex { position: [x + width,  -1.0, z+z_width],   tex_coords:  [t_r_p, 1.0] },
+                    Vertex { position: [x - width,  -1.0, z+z_width],   tex_coords:  [t_l_p, 1.0] },
+                    Vertex { position: [x - width,  -1.0, z],           tex_coords:  [t_r_p, 1.0] },
+                    Vertex { position: [x + width,  -1.0, z],           tex_coords:  [t_r_p, 1.0] },
+                    Vertex { position: [x + width,  -1.0, z+z_width],   tex_coords:  [t_l_p, 1.0] },
 
-                    Vertex { position: [x - width,  y, z+z_width],      tex_coords:  [t_r_p, t_t_p] },
-                    Vertex { position: [x - width,  y, z],              tex_coords:  [t_l_p, t_t_p] },
-                    Vertex { position: [x + width,  y, z],              tex_coords:  [t_l_p, t_t_p] },
-                    Vertex { position: [x + width,  y, z+z_width],      tex_coords:  [t_r_p, t_t_p] },
+                    Vertex { position: [x - width,  y, z+z_width],      tex_coords:  [t_l_p, t_t_p] },
+                    Vertex { position: [x - width,  y, z],              tex_coords:  [t_r_p, t_t_p] },
+                    Vertex { position: [x + width,  y, z],              tex_coords:  [t_r_p, t_t_p] },
+                    Vertex { position: [x + width,  y, z+z_width],      tex_coords:  [t_l_p, t_t_p] },
                 ].to_vec());
 
                 let i = (vertices.len() - 8) as u32;

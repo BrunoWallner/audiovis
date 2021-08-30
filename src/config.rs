@@ -4,17 +4,17 @@ use serde::{Deserialize};
 const DEFAULT_CONFIG: &str =
 "
 [visual]
-texture = 'default'
+texture = 'image.png'
 
-camera_pos = [0.0, 0.25, 6.25]
+camera_pos = [0.0, 0.0, 1.85]
 camera_facing = [0.0, -0.25, 0.0]
-fov = 15
+fov = 45
 
 
 # max frequency that should be displayed, lower does not mean any saved work on cpu
 max_frequency = 20000
 width = 1.0
-z_width = 0.2
+z_width = 0.1
 
 smoothing_size = 0
 smoothing_amount = 0
