@@ -107,25 +107,17 @@ pub fn convert_buffer(
     for i in 0..length as usize {
         output_buffer.push(buffer[i].norm())
     }
-    // *0.425 to cut off unwanted vector information that just mirrors itself and trims to exactly 20khz
+    // *0.455 to cut off unwanted vector information that just mirrors itself and trims to exactly 20khz
     let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.455) as usize].to_vec();
 
     // max frequency
     let percentage: f32 = config.visual.max_frequency as f32 / 20000.0;
     let mut output_buffer = output_buffer[0..(output_buffer.len() as f32 * percentage) as usize].to_vec();
 
+
     scale_fav_frequencies(&mut output_buffer, config.processing.fav_frequency_range, config.processing.fav_frequency_doubling);
 
-    // volume compensation
-    let buffer_len = output_buffer.len();
-    for i in 0..buffer_len {
-        let percentage: f32 = i as f32 / buffer_len as f32;
-        let amount: f32 = 0.1 / percentage.powf(config.processing.volume_compensation);
-        output_buffer[i] /= amount;
-    }
-
-    compensate_frequencies(&mut output_buffer, config.processing.frequency_compensation);
-    output_buffer
+    normalize(output_buffer, config.processing.normalisation_factoring)
 }
 
 fn scale_fav_frequencies(buffer: &mut Vec<f32>, fav_freqs: [u32; 2], doubling: u16) {
@@ -149,31 +141,44 @@ fn scale_fav_frequencies(buffer: &mut Vec<f32>, fav_freqs: [u32; 2], doubling: u
     }
 }
 
-fn compensate_frequencies(buffer: &mut Vec<f32>, compensation: f32) {
-    let buffer_len = buffer.len();
-    let mut smooth_step: f32 = 1.0;
+fn normalize(buffer: Vec<f32>, factoring: f32) -> Vec<f32> {
+    let buffer_len: usize = buffer.len();
+    let mut output_buffer: Vec<f32> = vec![0.0; buffer_len];
 
-    let mut scaled: usize = 0;
+    let mut start_pos: usize = 0;
+    let mut end_pos: usize = 0;
 
-    'compensating: loop {
-        let mut position: usize = 0;
-        smooth_step *= compensation; // 3.5
-        if smooth_step >= buffer.len() as f32 { break 'compensating }
-        for _ in 0..=smooth_step as u32 {
-            if position < buffer.len() - 1 {
-                let value: f32 = (buffer[position] + buffer[position + 1]) / 2.0;
-                buffer.insert(position + 1, value);
-                position += 2;
-                scaled += 1;
+    for i in 0..buffer.len() {
+        let offset: f32 = (buffer_len as f32 / (i + 1) as f32).powf(factoring);
+        if ((i as f32 * offset) as usize) < output_buffer.len() {
+            // sets positions needed for future operations
+            let pos: usize = (i as f32 * offset) as usize;
+            start_pos = end_pos;
+            end_pos = pos;
+
+            // volume normalisation
+            let mut y = buffer[i];
+            y *= ((i + 1) as f32).sqrt();
+
+            if output_buffer[pos] < y {
+                output_buffer[pos] = y;
             }
         }
-        // smoothing
-        let interpolated_len: usize = buffer_len + scaled;
-        for i in 0..interpolated_len {
-            if i < buffer.len() - 1 {
-                let value: f32 = (buffer[i] + (buffer[i+1])) / 2.0;
-                buffer[i] = value;
+        if end_pos - start_pos > 1 && (end_pos - 1) < output_buffer.len() {
+            // filling
+            for s_p in (start_pos + 1)..end_pos {
+                let percentage: f32 = (s_p - start_pos) as f32 / ((end_pos - 1) - start_pos) as f32;
+
+                let mut y: f32 = 0.0;
+                //(output_buffer[s_p] * (1.0 - percentage) ) + (output_buffer[end_pos] * percentage);
+                y += output_buffer[start_pos] * (1.0 - percentage);
+                y += output_buffer[end_pos] * percentage;
+                output_buffer[s_p] = y
             }
         }
     }
+
+    output_buffer
 }
+
+

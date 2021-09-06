@@ -42,7 +42,6 @@ pub fn init(
                             config.visual.z_width,
                             config.audio.volume_amplitude,
                             config.audio.volume_factoring,
-                            config.processing.experimental_multithreaded_mesh_gen,
                         );
                         sender.send(Event::PushMesh(mesh)).unwrap();
                     });

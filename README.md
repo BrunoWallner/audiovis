@@ -11,11 +11,9 @@ Feature                 |   Windows 10  |   Linux       |   macOS       |
 ----------------------- | ------------- | ------------- | ------------- |
 DefaultAudioInputStream | Supported     | Supported     | ?             |
 DesktopAudioInputStream | Supported     | Supported     | ?             |
-BarVisualisation        |reimplementing |reimplementing |reimplementing |
-StringVisualisation     |reimplementing |reimplementing |reimplementing |
 3DVisualisation         | Supported     | Supported     | Supported     |
 
-String- and BarVisualisation are still available in the legacy branch
+2D String- and BarVisualisation are still available in the legacy branch
 
 I am unable to test audiovis on macOS but it should just work fine.
 
@@ -26,7 +24,6 @@ It should also be possible without much work to port it over to the web but I ne
 * volume control
 * 3D visualisation
 * rich configuration via config file
-* string and bar visualisation
 * configurable buffering and smoothing via config.toml
 * configurable higher scaling of lower frequencies for a better look
 * selectable amount of frequencies that should be displayed (0 - 20.000)
@@ -37,6 +34,7 @@ It should also be possible without much work to port it over to the web but I ne
 ##### WiP
 * modifiable config via userinput during runtime
 * selecting sampling rate of audio-stream
+* beat visualisation
 
 ## How to configure
 1. use `audiovis -g` to generate the default config as `default.config.toml` to your current directory

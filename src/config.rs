@@ -4,7 +4,8 @@ use serde::{Deserialize};
 const DEFAULT_CONFIG: &str =
 "
 [visual]
-texture = 'image.png'
+# path to bar_texture, 'default' for default texture
+texture = 'default'
 
 camera_pos = [0.0, 0.0, 1.85]
 camera_facing = [0.0, -0.25, 0.0]
@@ -29,31 +30,28 @@ window_always_on_top = false
 [processing]
 gravity = 1.25
 
-# compensates high and low frequency volume- and space-difference, higher value means less low_frequencies and higher high_frequencies
-volume_compensation = 0.45
-frequency_compensation = 3.25
+# normalizes the position of bars, higher value encreases proportions of lower frequencies
+# default value should be 0.5 but with favourite_freq_scaling this should be increased
+normalisation_factoring = 0.65
 
 # range of frequencies which scale should be increased
-fav_frequency_range = [500, 2500]
+fav_frequency_range = [250, 4000]
 fav_frequency_doubling = 3
 
 # how many buffers should be saved and displayed in 3D
-buffering = 100
+buffering = 50
 
 # halfes the scale x times
-bar_reduction = 6
+bar_reduction = 3
 
-# not really working rn
-experimental_multithreaded_mesh_gen = 1
-
-buffer_resolution_drop = 0.25
-max_buffer_resolution_drop = 7
+buffer_resolution_drop = 1.0
+max_buffer_resolution_drop = 8
 
 [audio]
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 0.25
+volume_amplitude = 0.2
 volume_factoring = 1.0
 ";
 
@@ -90,13 +88,11 @@ pub struct Audio {
 #[derive(Deserialize, Clone)]
 pub struct Processing {
     pub gravity: f32,
-    pub volume_compensation: f32,
-    pub frequency_compensation: f32,
+    pub normalisation_factoring: f32,
     pub fav_frequency_range: [u32; 2],
     pub fav_frequency_doubling: u16,
     pub buffering: u32,
     pub bar_reduction: u32,
-    pub experimental_multithreaded_mesh_gen: u32,
     pub buffer_resolution_drop: f32,
     pub max_buffer_resolution_drop: u16,
 }
@@ -143,9 +139,6 @@ pub fn check_config(config: Config) -> Result<(), String> {
     }
     if p.gravity < 0.0 {
         return Err(String::from("error at processing section, gravity must be greater than 0.0"))
-    }
-    if p.frequency_compensation < 2.1 {
-        return Err(String::from("error at processing section, frequency_compensation must be greater than 2.1"))
     }
 
     Ok(())
