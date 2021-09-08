@@ -53,7 +53,7 @@ max_buffer_resolution_drop = 8
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 200.0
+volume_amplitude = 100.0
 volume_factoring = 1.0
 ";
 
