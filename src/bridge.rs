@@ -23,7 +23,7 @@ pub fn init(
                 Event::Push(mut n) => {
                     bar_reduction(&mut n, config.processing.bar_reduction);
                     if buffer.len() > 0 {
-                        smooth_buffer(&mut n.clone(), config.visual.smoothing_amount, config.visual.smoothing_size);
+                        //smooth_buffer(&mut n, config.visual.smoothing_amount, config.visual.smoothing_size);
                         n = buffer_gravity(smoothing_buffer.clone(), n, (config.processing.gravity * 0.25 ) + 1.0);
                     }
                     smoothing_buffer = n.clone();
@@ -84,21 +84,6 @@ fn buffer_gravity(
     return output_buffer;
 }
 
-fn smooth_buffer(
-    buffer: &mut Vec<f32>,
-    smoothing: u32,
-    smoothing_size: u32,
-) {
-    for _ in 0..smoothing {
-        for i in 0..buffer.len() - smoothing_size as usize {
-            let mut y = 0.0;
-            for x in 0..smoothing_size as usize {
-                y += buffer[i+x];
-            }
-            buffer[i] = y / smoothing_size as f32;
-        }
-    }
-}
 
 pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: u32) {
     // reduces number of bars, but keeps frequencies

@@ -7,18 +7,17 @@ const DEFAULT_CONFIG: &str =
 # path to bar_texture, 'default' for default texture
 texture = 'default'
 
-camera_pos = [0.0, 0.0, 1.85]
-camera_facing = [0.0, -0.25, 0.0]
-fov = 45
-
+camera_pos = [0.0, -0.25, 17.5]
+camera_facing = [-0.05, -0.25, 0.0]
+fov = 5
 
 # max frequency that should be displayed, lower does not mean any saved work on cpu
 max_frequency = 20000
 width = 1.0
-z_width = 0.1
+z_width = 0.5
 
-smoothing_size = 0
-smoothing_amount = 0
+smoothing_size = 10
+smoothing_amount = 3
 
 # hides the cursor if hovered over audiovis window
 hide_cursor = false
@@ -28,21 +27,24 @@ fullscreen = false
 window_always_on_top = false
 
 [processing]
-gravity = 1.25
+gravity = 1.0
+
+# higher resolution adds latency and processing time
+resolution = 2048
 
 # normalizes the position of bars, higher value encreases proportions of lower frequencies
 # default value should be 0.5 but with favourite_freq_scaling this should be increased
-normalisation_factoring = 0.65
+normalisation_factoring = 0.5
 
 # range of frequencies which scale should be increased
-fav_frequency_range = [250, 4000]
-fav_frequency_doubling = 3
+fav_frequency_range = [40, 3500]
+fav_frequency_doubling = 2
 
 # how many buffers should be saved and displayed in 3D
-buffering = 50
+buffering = 25
 
 # halfes the scale x times
-bar_reduction = 3
+bar_reduction = 2
 
 buffer_resolution_drop = 1.0
 max_buffer_resolution_drop = 8
@@ -51,7 +53,7 @@ max_buffer_resolution_drop = 8
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 0.2
+volume_amplitude = 200.0
 volume_factoring = 1.0
 ";
 
@@ -95,6 +97,7 @@ pub struct Processing {
     pub bar_reduction: u32,
     pub buffer_resolution_drop: f32,
     pub max_buffer_resolution_drop: u16,
+    pub resolution: u32,
 }
 
 pub fn generate_default_config() {

@@ -38,10 +38,14 @@ pub fn stream_input(
             DeviceType::Output() => device.default_output_config().unwrap(),
         };
 
+        let (buffer_sender, buffer_receiver) = mpsc::channel();
+
+        init_buffer_receiver(buffer_receiver, bridge_sender.clone(), config.clone());
+
         let stream = match device_config.sample_format() {
             cpal::SampleFormat::F32 => device.build_input_stream(
                 &device_config.into(),
-                move |data, _: &_| handle_input_data_f32(data, bridge_sender.clone(), config.clone()),
+                move |data, _: &_| handle_input_data_f32(data, buffer_sender.clone()),
                 err_fn,
             ).unwrap(),
             other => {
@@ -55,13 +59,26 @@ pub fn stream_input(
     });
 }
 
-fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<bridge::Event>, config: Config) {
-    let sender = sender.clone();
-    let b = data.to_vec();
+// receives and buffers audiodata and converts it via fft if buffer size is big enough
+fn init_buffer_receiver(receiver: mpsc::Receiver<Vec<f32>>, sender: mpsc::Sender<bridge::Event>, config: Config) {
     thread::spawn(move || {
-        let buffer: Vec<f32> = convert_buffer(b, config); // pretty cpu heavy
-        sender.send(bridge::Event::Push(buffer)).ok();
+        let mut buffer: Vec<f32> = Vec::new();
+
+        loop  {
+            let mut r = receiver.recv().unwrap();
+            buffer.append(&mut r);
+            if buffer.len() > config.processing.resolution as usize {
+                let b = convert_buffer(buffer[0..config.processing.resolution as usize].to_vec(), config.clone());
+                sender.send(bridge::Event::Push(b)).unwrap();
+                buffer = Vec::new();
+            }
+        }
     });
+}
+
+fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<Vec<f32>>) {
+    let sender = sender.clone();
+    sender.send(data.to_vec()).unwrap();
 }
 
 fn err_fn(err: cpal::StreamError) {
@@ -107,32 +124,42 @@ pub fn convert_buffer(
     for i in 0..length as usize {
         output_buffer.push(buffer[i].norm())
     }
-    // *0.455 to cut off unwanted vector information that just mirrors itself and trims to exactly 20khz
-    let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.455) as usize].to_vec();
 
-    // max frequency
-    let percentage: f32 = config.visual.max_frequency as f32 / 20000.0;
-    let mut output_buffer = output_buffer[0..(output_buffer.len() as f32 * percentage) as usize].to_vec();
+    // remove mirroring
+    let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.5) as usize].to_vec();
 
+    let mut output_buffer = normalize(output_buffer, config.processing.normalisation_factoring);
 
-    scale_fav_frequencies(&mut output_buffer, config.processing.fav_frequency_range, config.processing.fav_frequency_doubling);
+    scale_fav_frequencies(
+        &mut output_buffer,
+        config.processing.fav_frequency_range,
+        config.processing.fav_frequency_doubling,
+        config.processing.normalisation_factoring,
+    );
 
-    normalize(output_buffer, config.processing.normalisation_factoring)
+    smooth(&mut output_buffer, config.visual.smoothing_amount, config.visual.smoothing_size);
+
+    output_buffer
 }
 
-fn scale_fav_frequencies(buffer: &mut Vec<f32>, fav_freqs: [u32; 2], doubling: u16) {
-    let mut doubled: u32 = 0;
+fn scale_fav_frequencies(buffer: &mut Vec<f32>, fav_freqs: [u32; 2], doubling: u16, factoring: f32) {
+    let mut doubled: usize = 0;
+    let buffer_len = buffer.len();
     for _ in 0..doubling {
         let start_percentage: f32 = fav_freqs[0] as f32 / 20_000.0;
-        let start_pos: usize = (buffer.len() as f32 * start_percentage) as usize;
-
         let end_percentage: f32 = fav_freqs[1] as f32 / 20_000.0;
-        let end_pos: usize = (buffer.len() as f32 * end_percentage) as usize + doubled as usize;
 
-        let mut position: usize = start_pos;
-        for _ in start_pos..end_pos {
+        let start_pos: usize = (buffer_len as f32 * start_percentage) as usize;
+        let end_pos: usize = (buffer_len as f32 * end_percentage) as usize;
+
+        let normalized_start_pos: usize = ((buffer_len as f32 / start_pos as f32).powf(factoring) * start_pos as f32) as usize;
+        let normalized_end_pos: usize = ((buffer_len as f32 / end_pos as f32).powf(factoring) * end_pos as f32) as usize + doubled;
+
+        let mut position: usize = normalized_start_pos;
+        for _ in normalized_start_pos..normalized_end_pos {
             if position < buffer.len() - 1 {
                 let value: f32 = (buffer[position] + buffer[position + 1]) / 2.0;
+
                 buffer.insert(position + 1, value);
                 position += 2;
                 doubled += 1;
@@ -148,17 +175,20 @@ fn normalize(buffer: Vec<f32>, factoring: f32) -> Vec<f32> {
     let mut start_pos: usize = 0;
     let mut end_pos: usize = 0;
 
-    for i in 0..buffer.len() {
-        let offset: f32 = (buffer_len as f32 / (i + 1) as f32).powf(factoring);
+    let mut pos_index: Vec<[usize; 2]> = Vec::new();
+
+    for i in 0..buffer_len {
+        let offset: f32 = (buffer_len as f32 / (i + 0) as f32).powf(factoring);
         if ((i as f32 * offset) as usize) < output_buffer.len() {
             // sets positions needed for future operations
             let pos: usize = (i as f32 * offset) as usize;
             start_pos = end_pos;
             end_pos = pos;
+            pos_index.push([start_pos, end_pos]);
 
             // volume normalisation
             let mut y = buffer[i];
-            y *= ((i + 1) as f32).sqrt();
+            y *= ((i + 0) as f32 / buffer_len as f32).powf(0.75);
 
             if output_buffer[pos] < y {
                 output_buffer[pos] = y;
@@ -173,12 +203,32 @@ fn normalize(buffer: Vec<f32>, factoring: f32) -> Vec<f32> {
                 //(output_buffer[s_p] * (1.0 - percentage) ) + (output_buffer[end_pos] * percentage);
                 y += output_buffer[start_pos] * (1.0 - percentage);
                 y += output_buffer[end_pos] * percentage;
-                output_buffer[s_p] = y
+                output_buffer[s_p] = y;
             }
         }
     }
 
     output_buffer
+}
+
+fn smooth(
+    buffer: &mut Vec<f32>,
+    smoothing: u32,
+    smoothing_size: u32,
+) {
+    for _ in 0..smoothing {
+        for i in 0..buffer.len() - smoothing_size as usize {
+            // reduce smoothing for higher freqs
+            let percentage: f32 = i as f32 / buffer.len() as f32;
+            let smoothing_size = (smoothing_size as f32 * (1.5 - percentage)) as u32;
+
+            let mut y = 0.0;
+            for x in 0..smoothing_size as usize {
+                y += buffer[i+x];
+            }
+            buffer[i] = y / smoothing_size as f32;
+        }
+    }
 }
 
 
