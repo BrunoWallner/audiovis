@@ -40,7 +40,7 @@ pub fn stream_input(
 
         let (buffer_sender, buffer_receiver) = mpsc::channel();
 
-        init_buffer_receiver(buffer_receiver, bridge_sender.clone(), config.clone());
+        init_buffer_receiver(buffer_receiver, bridge_sender.clone(), config);
 
         let stream = match device_config.sample_format() {
             cpal::SampleFormat::F32 => device.build_input_stream(
@@ -55,7 +55,7 @@ pub fn stream_input(
 
         stream.play().unwrap();
 
-        loop {}
+        thread::park();
     });
 }
 
@@ -77,7 +77,7 @@ fn init_buffer_receiver(receiver: mpsc::Receiver<Vec<f32>>, sender: mpsc::Sender
 }
 
 fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<Vec<f32>>) {
-    let sender = sender.clone();
+    let sender = sender;
     sender.send(data.to_vec()).unwrap();
 }
 
@@ -111,22 +111,21 @@ pub fn convert_buffer(
     let fft = planner.plan_fft_forward(input_buffer.len());
 
     let mut buffer: Vec<Complex<f32>> = Vec::new();
-    for i in 0..input_buffer.len() {
+    for i in input_buffer.iter() {
         buffer.push(Complex {
-            re: input_buffer[i],
+            re: *i,
             im: 0.0,
         });
     }
     fft.process(&mut buffer[..]);
 
     let mut output_buffer: Vec<f32> = Vec::new();
-    let length: usize = buffer.len() / 2;
-    for i in 0..length as usize {
-        output_buffer.push(buffer[i].norm())
+    for i in buffer.iter() {
+        output_buffer.push(i.norm())
     }
 
     // remove mirroring
-    let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.5) as usize].to_vec();
+    let output_buffer = output_buffer[0..(output_buffer.len() as f32 * 0.25) as usize].to_vec();
 
     let mut output_buffer = normalize(output_buffer, config.processing.normalisation_factoring);
 
@@ -170,6 +169,7 @@ fn scale_fav_frequencies(buffer: &mut Vec<f32>, fav_freqs: [u32; 2], doubling: u
     }
 }
 
+#[allow(clippy::needless_range_loop)]
 fn normalize(buffer: Vec<f32>, factoring: f32) -> Vec<f32> {
     let buffer_len: usize = buffer.len();
     let mut output_buffer: Vec<f32> = vec![0.0; buffer_len];

@@ -22,7 +22,7 @@ pub fn init(
             Ok(event) => match event {
                 Event::Push(mut n) => {
                     bar_reduction(&mut n, config.processing.bar_reduction);
-                    if buffer.len() > 0 {
+                    if !buffer.is_empty() {
                         //smooth_buffer(&mut n, config.visual.smoothing_amount, config.visual.smoothing_size);
                         n = buffer_gravity(smoothing_buffer.clone(), n, (config.processing.gravity * 0.25 ) + 1.0);
                     }
@@ -62,6 +62,7 @@ pub fn init(
     });
 }
 
+#[allow(clippy::same_item_push)]
 fn buffer_gravity(
     mut old_buffer: Vec<f32>,
     new_buffer: Vec<f32>,
@@ -81,7 +82,7 @@ fn buffer_gravity(
         }
         output_buffer.push(old_buffer[i] / gravity);
     }
-    return output_buffer;
+    output_buffer
 }
 
 // reduces resolution of buffer
@@ -122,20 +123,20 @@ pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: u32) {
 
 // reduces resolution of buffer in the further away it is from the camera
 fn reduce_buffer(buffer: &mut Vec<Vec<f32>>, resolution_drop: f32, max_res_drop: u16) {
-    for z in 0..buffer.len() {
+    for (b_z, b) in buffer.iter_mut().enumerate() {
         if resolution_drop > 0.0 {
-            let mut amount = (z as f32 * resolution_drop * 0.1) as usize;
+            let mut amount = (b_z as f32 * resolution_drop * 0.1) as usize;
             if amount > max_res_drop as usize {
                 amount = max_res_drop as usize;
             }
             for _ in 0..amount {
                 let mut pos: usize = 1; // to compensate for space distortion
                 loop {
-                    if buffer[z].len() > pos + 1 {
-                        if buffer[z][pos] < buffer[z][pos+1] {
-                            buffer[z].remove(pos);
+                    if b.len() > pos + 1 {
+                        if b[pos] < b[pos+1] {
+                            b.remove(pos);
                         } else {
-                            buffer[z].remove(pos+1);
+                            b.remove(pos+1);
                         }
                         pos += 2;
                     } else {

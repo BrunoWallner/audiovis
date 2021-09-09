@@ -14,6 +14,7 @@ impl Mesh {
     }
 }
 
+#[allow(clippy::needless_range_loop)]
 pub fn from_buffer(
     buffer: Vec<Vec<f32>>,
     width: f32,
@@ -30,7 +31,6 @@ pub fn from_buffer(
         buffer_length_index.push(length);
         length += buffer[i].len();
     }
-    drop(length);
 
     for z in 0..buffer.len() {
         let buffer_len = buffer[z].len();
@@ -68,10 +68,10 @@ pub fn from_buffer(
             let i = (vertices.len() - 8) as u32;
             indices.append(&mut [
                 // front
-                i+0,
+                i,
                 i+7,
                 i+4,
-                i+0,
+                i,
                 i+3,
                 i+7,
 
@@ -80,7 +80,7 @@ pub fn from_buffer(
                 i+4,
                 i+5,
                 i+1,
-                i+0,
+                i,
                 i+4,
 
                 // right
@@ -101,7 +101,7 @@ pub fn from_buffer(
             ].to_vec());
         }
     }
-    return Mesh {vertices, indices};
+    Mesh {vertices, indices}
 }
 
 

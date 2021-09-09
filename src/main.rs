@@ -101,7 +101,7 @@ fn main() {
 
     let mut state = pollster::block_on(State::new(
         &window,
-        bridge_sender.clone(),
+        bridge_sender,
         config.clone(),
         bar_texture,
     ));
@@ -135,7 +135,7 @@ fn main() {
                                 virtual_keycode: Some(VirtualKeyCode::F),
                                 ..
                             } => {
-                                if !window.fullscreen().is_some() {
+                                if window.fullscreen().is_none() {
                                     window.set_fullscreen(Some(Fullscreen::Borderless(None)))
                                 } else {
                                     window.set_fullscreen(None)
