@@ -37,7 +37,7 @@ pub fn from_buffer(
         for i in 0..buffer_len {
             let width: f32 = 1.0 / buffer_len as f32 * width;
             let x = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0) + width;
-            let mut y: f32 = volume_amplitude * ( buffer[z][i] as f32 * 0.001 );
+            let mut y: f32 = volume_amplitude * ( buffer[z][i] as f32 * 0.00175 );
             y = y.powf(volume_factoring);
 
             // max height important because texture overflow could appear

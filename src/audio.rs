@@ -145,14 +145,16 @@ pub fn convert_buffer(
 fn scale_fav_frequencies(buffer: &mut Vec<f32>, fav_freqs: [u32; 2], doubling: u16, factoring: f32) {
     let mut doubled: usize = 0;
     let buffer_len = buffer.len();
-    for _ in 0..doubling {
+    for i in 0..doubling {
         let start_percentage: f32 = fav_freqs[0] as f32 / 20_000.0;
         let end_percentage: f32 = fav_freqs[1] as f32 / 20_000.0;
 
         let start_pos: usize = (buffer_len as f32 * start_percentage) as usize;
         let end_pos: usize = (buffer_len as f32 * end_percentage) as usize;
 
-        let normalized_start_pos: usize = ((buffer_len as f32 / start_pos as f32).powf(factoring) * start_pos as f32) as usize;
+        let mut normalized_start_pos: usize = ((buffer_len as f32 / start_pos as f32).powf(factoring) * start_pos as f32) as usize;
+        normalized_start_pos = (normalized_start_pos as f32 * (1.0 - ( ( (i + 1) as f32 / doubling as f32) * 0.25))) as usize; // for smoothing edge between non scaled and scaled freqs
+
         let normalized_end_pos: usize = ((buffer_len as f32 / end_pos as f32).powf(factoring) * end_pos as f32) as usize + doubled;
 
         let mut position: usize = normalized_start_pos;
@@ -178,7 +180,7 @@ fn normalize(buffer: Vec<f32>, factoring: f32) -> Vec<f32> {
     let mut pos_index: Vec<[usize; 2]> = Vec::new();
 
     for i in 0..buffer_len {
-        let offset: f32 = (buffer_len as f32 / (i + 0) as f32).powf(factoring);
+        let offset: f32 = (buffer_len as f32 / (i + 1) as f32).powf(factoring);
         if ((i as f32 * offset) as usize) < output_buffer.len() {
             // sets positions needed for future operations
             let pos: usize = (i as f32 * offset) as usize;
@@ -188,7 +190,7 @@ fn normalize(buffer: Vec<f32>, factoring: f32) -> Vec<f32> {
 
             // volume normalisation
             let mut y = buffer[i];
-            y *= ((i + 0) as f32 / buffer_len as f32).powf(0.75);
+            y *= ((i + 1) as f32 / buffer_len as f32).powf(0.75);
 
             if output_buffer[pos] < y {
                 output_buffer[pos] = y;
@@ -220,7 +222,7 @@ fn smooth(
         for i in 0..buffer.len() - smoothing_size as usize {
             // reduce smoothing for higher freqs
             let percentage: f32 = i as f32 / buffer.len() as f32;
-            let smoothing_size = (smoothing_size as f32 * (1.5 - percentage)) as u32;
+            let smoothing_size = (smoothing_size as f32 * (1.5 - percentage.powf(2.0))) as u32;
 
             let mut y = 0.0;
             for x in 0..smoothing_size as usize {

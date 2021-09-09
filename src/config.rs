@@ -8,7 +8,7 @@ const DEFAULT_CONFIG: &str =
 texture = 'default'
 
 camera_pos = [0.0, -0.25, 17.5]
-camera_facing = [-0.05, -0.25, 0.0]
+camera_facing = [0.0, -0.25, 0.0]
 fov = 5
 
 # max frequency that should be displayed, lower does not mean any saved work on cpu
@@ -16,8 +16,8 @@ max_frequency = 20000
 width = 1.0
 z_width = 0.5
 
-smoothing_size = 10
-smoothing_amount = 3
+smoothing_size = 15
+smoothing_amount = 1
 
 # hides the cursor if hovered over audiovis window
 hide_cursor = false
@@ -30,6 +30,7 @@ window_always_on_top = false
 gravity = 1.0
 
 # higher resolution adds latency and processing time
+# resolution should be an amplitude of 2 for improved fft performance
 resolution = 2048
 
 # normalizes the position of bars, higher value encreases proportions of lower frequencies
@@ -37,14 +38,14 @@ resolution = 2048
 normalisation_factoring = 0.5
 
 # range of frequencies which scale should be increased
-fav_frequency_range = [40, 3500]
+fav_frequency_range = [30, 3500]
 fav_frequency_doubling = 2
 
 # how many buffers should be saved and displayed in 3D
 buffering = 25
 
 # halfes the scale x times
-bar_reduction = 2
+bar_reduction = 3
 
 buffer_resolution_drop = 1.0
 max_buffer_resolution_drop = 8

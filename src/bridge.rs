@@ -84,26 +84,43 @@ fn buffer_gravity(
     return output_buffer;
 }
 
-
+// reduces resolution of buffer
 pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: u32) {
-    // reduces number of bars, but keeps frequencies
-    for _ in 0..bar_reduction {
-        let mut pos: usize = 0;
-        loop {
-            if buffer.len() > pos + 1 {
-                if buffer[pos] < buffer[pos+1] {
-                    buffer.remove(pos);
-                } else {
-                    buffer.remove(pos+1);
-                }
-                pos += 2;
-            } else {
-                break;
+    if bar_reduction == 0 {return}
+    let mut position: usize = 0;
+
+    'reducing: loop {
+        // break if reached end of buffer
+        if position + bar_reduction as usize >= buffer.len() {
+            break 'reducing;
+        }
+
+        // smoothing of bars that are gonna be removed into the bar that stays
+        let mut y: f32 = 0.0;
+        for x in 0..bar_reduction as usize {
+            y += buffer[position + x];
+        }
+        buffer[position] = y / bar_reduction as f32;
+
+        // actual removing
+        for x in 1..bar_reduction as usize {
+            if position + x < buffer.len() {
+                buffer.remove(position + x);
             }
+        }
+
+        position += 1;
+    }
+
+    // remove last parts of buffer that cannot easily be smoothed
+    if buffer.len() > bar_reduction as usize {
+        for _ in 0..bar_reduction {
+            buffer.pop();
         }
     }
 }
 
+// reduces resolution of buffer in the further away it is from the camera
 fn reduce_buffer(buffer: &mut Vec<Vec<f32>>, resolution_drop: f32, max_res_drop: u16) {
     for z in 0..buffer.len() {
         if resolution_drop > 0.0 {
@@ -112,7 +129,7 @@ fn reduce_buffer(buffer: &mut Vec<Vec<f32>>, resolution_drop: f32, max_res_drop:
                 amount = max_res_drop as usize;
             }
             for _ in 0..amount {
-                let mut pos: usize = 1; // potential shifting but idk
+                let mut pos: usize = 1; // to compensate for space distortion
                 loop {
                     if buffer[z].len() > pos + 1 {
                         if buffer[z][pos] < buffer[z][pos+1] {
