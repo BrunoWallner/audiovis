@@ -4,19 +4,23 @@ use serde::{Deserialize};
 const DEFAULT_CONFIG: &str =
 "
 [visual]
+# possible values are Bars1, Bars2
+visualisation = 'Bars2'
+
 # path to bar_texture, 'default' for default texture
+# example would be 'example_textures/lavender.png'
 texture = 'default'
 
-camera_pos = [0.0, -0.25, 17.5]
+camera_pos = [0.0, -0.25, 1.9]
 camera_facing = [0.0, -0.25, 0.0]
-fov = 5
+fov = 45
 
 # max frequency that should be displayed, lower does not mean any saved work on cpu
 max_frequency = 20000
 width = 1.0
-z_width = 0.5
+z_width = 0.025
 
-smoothing_size = 15
+smoothing_size = 25
 smoothing_amount = 1
 
 # hides the cursor if hovered over audiovis window
@@ -27,11 +31,14 @@ fullscreen = false
 window_always_on_top = false
 
 [processing]
-gravity = 1.0
+gravity = 0.5
 
 # higher resolution adds latency and processing time
-# resolution should be an amplitude of 2 for improved fft performance
-resolution = 2048
+# resolution should be factor of 2 for improved fft performance
+resolution = 3000
+
+# how many times the calculated buffer should be display every sencond
+frequency = 60
 
 # normalizes the position of bars, higher value encreases proportions of lower frequencies
 # default value should be 0.5 but with favourite_freq_scaling this should be increased
@@ -42,13 +49,13 @@ fav_frequency_range = [30, 3500]
 fav_frequency_doubling = 2
 
 # how many buffers should be saved and displayed in 3D
-buffering = 25
+buffering = 2
 
 # halfes the scale x times
-bar_reduction = 3
+bar_reduction = 2
 
-buffer_resolution_drop = 1.0
-max_buffer_resolution_drop = 8
+buffer_resolution_drop = 0.5
+max_buffer_resolution_drop = 7
 
 [audio]
 # should improve quality
@@ -67,6 +74,7 @@ pub struct Config {
 
 #[derive(Deserialize, Clone)]
 pub struct Visual {
+    pub visualisation: String,
     pub smoothing_size: u32,
     pub smoothing_amount: u32,
     pub max_frequency: u32,
@@ -99,6 +107,7 @@ pub struct Processing {
     pub buffer_resolution_drop: f32,
     pub max_buffer_resolution_drop: u16,
     pub resolution: u32,
+    pub frequency: u16,
 }
 
 pub fn generate_default_config() {

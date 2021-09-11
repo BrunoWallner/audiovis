@@ -2,6 +2,8 @@ use crate::*;
 use rustfft::{num_complex::Complex, FftPlanner};
 use std::thread;
 
+use std::time::Duration;
+
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 use crate::config::Config;
@@ -40,7 +42,7 @@ pub fn stream_input(
 
         let (buffer_sender, buffer_receiver) = mpsc::channel();
 
-        init_buffer_receiver(buffer_receiver, bridge_sender.clone(), config);
+        init_buffer_receiver(buffer_receiver, buffer_sender.clone(), bridge_sender.clone(), config);
 
         let stream = match device_config.sample_format() {
             cpal::SampleFormat::F32 => device.build_input_stream(
@@ -59,30 +61,75 @@ pub fn stream_input(
     });
 }
 
-// receives and buffers audiodata and converts it via fft if buffer size is big enough
-fn init_buffer_receiver(receiver: mpsc::Receiver<Vec<f32>>, sender: mpsc::Sender<bridge::Event>, config: Config) {
-    thread::spawn(move || {
-        let mut buffer: Vec<f32> = Vec::new();
-
-        loop  {
-            let mut r = receiver.recv().unwrap();
-            buffer.append(&mut r);
-            if buffer.len() > config.processing.resolution as usize {
-                let b = convert_buffer(buffer[0..config.processing.resolution as usize].to_vec(), config.clone());
-                sender.send(bridge::Event::Push(b)).unwrap();
-                buffer = Vec::new();
-            }
-        }
-    });
-}
-
-fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<Vec<f32>>) {
+fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<ReceiverRequest>) {
     let sender = sender;
-    sender.send(data.to_vec()).unwrap();
+    sender.send(ReceiverRequest::Push(data.to_vec())).unwrap();
 }
 
 fn err_fn(err: cpal::StreamError) {
     eprintln!("an error occurred on stream: {}", err);
+}
+
+enum ReceiverRequest {
+    Push(Vec<f32>),
+    SendBufferToBridge(),
+}
+
+// receives and buffers audiodata and converts it via fft if buffer size is big enough
+fn init_buffer_receiver(
+    receiver: mpsc::Receiver<ReceiverRequest>,
+    buffer_sender: mpsc::Sender<ReceiverRequest>,
+    bridge_sender: mpsc::Sender<bridge::Event>,
+    config: Config,
+) {
+    let config_clone = config.clone();
+    thread::spawn(move || {
+        let mut buffer: Vec<f32> = Vec::new();
+        let mut calculated_buffer: Vec<f32> = Vec::new();
+        let mut smoothing_buffer: Vec<f32> = Vec::new();
+
+        loop  {
+            let r = receiver.recv().unwrap();
+            match r {
+                ReceiverRequest::Push(mut b) => {
+                    buffer.append(&mut b);
+                    if buffer.len() > config_clone.processing.resolution as usize {
+                        while buffer.len() > config_clone.processing.resolution as usize {
+                            calculated_buffer = convert_buffer(buffer[0..config_clone.processing.resolution as usize].to_vec(), config_clone.clone());
+
+                            // remove already calculated parts
+                            buffer.drain(0..config_clone.processing.resolution as usize);
+                        }
+                    };
+                },
+                ReceiverRequest::SendBufferToBridge() => {
+                    let smoothed_buffer = if !buffer.is_empty() {
+                        merge_buffers(smoothing_buffer, calculated_buffer.clone())
+                    } else {
+                        calculated_buffer.clone()
+                    };
+                    bridge_sender.send(bridge::Event::Push(smoothed_buffer)).expect("audio thread lost connection to bridge");
+                    smoothing_buffer = calculated_buffer.clone();
+                }
+            }
+        }
+    });
+    // thread that requests every n ms to push converted buffer to bridge
+    let frequency = config.processing.frequency;
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_millis(1000 / frequency as u64));
+        buffer_sender.send(ReceiverRequest::SendBufferToBridge()).expect("audio thread lost connection to bridge");
+    });
+}
+
+fn merge_buffers(buffer1: Vec<f32>, buffer2: Vec<f32>) -> Vec<f32> {
+    let mut output_buffer: Vec<f32> = Vec::new();
+
+    for i in 0..buffer1.len() {
+        output_buffer.push( (buffer1[i] + buffer2[i]) / 2.0 );
+    }
+
+    output_buffer
 }
 
 // most cpu intensive parts down here, could probably be improved
@@ -222,7 +269,7 @@ fn smooth(
         for i in 0..buffer.len() - smoothing_size as usize {
             // reduce smoothing for higher freqs
             let percentage: f32 = i as f32 / buffer.len() as f32;
-            let smoothing_size = (smoothing_size as f32 * (1.5 - percentage.powf(2.0))) as u32;
+            let smoothing_size = (smoothing_size as f32 * (1.5 - percentage.powf(2.5))) as u32;
 
             let mut y = 0.0;
             for x in 0..smoothing_size as usize {

@@ -17,6 +17,8 @@ pub fn init(
     let mut buffer: Vec<Vec<f32>> = Vec::new();
     let mut mesh: mesh::Mesh = mesh::Mesh::new();
     let mut smoothing_buffer: Vec<f32> = Vec::new();
+
+    // this thread must be running, otherwise the whole app crashes
     thread::spawn(move || loop {
         match receiver.recv() {
             Ok(event) => match event {
@@ -34,15 +36,33 @@ pub fn init(
                     let mut buffer = buffer.clone();
                     let config = config.clone();
                     let sender = sender.clone();
+
+                    // offloads mesh generation from window thread to this one
                     thread::spawn(move || {
-                        reduce_buffer(&mut buffer, config.processing.buffer_resolution_drop, config.processing.max_buffer_resolution_drop);
-                        let mesh = mesh::from_buffer(
-                            buffer,
-                            config.visual.width,
-                            config.visual.z_width,
-                            config.audio.volume_amplitude,
-                            config.audio.volume_factoring,
-                        );
+                        if buffer.len() > 1 {
+                            reduce_buffer(&mut buffer, config.processing.buffer_resolution_drop, config.processing.max_buffer_resolution_drop);
+                        }
+                        let mesh = match config.visual.visualisation.as_str() {
+                            "Bars1" => {
+                                 mesh::from_buffer_bars1(
+                                    buffer,
+                                    config.visual.width,
+                                    config.visual.z_width,
+                                    config.audio.volume_amplitude,
+                                    config.audio.volume_factoring,
+                                )
+                            },
+                            "Bars2" => {
+                                mesh::from_buffer_bars2(
+                                    buffer,
+                                    config.visual.width,
+                                    config.visual.z_width,
+                                    config.audio.volume_amplitude,
+                                    config.audio.volume_factoring,
+                                )
+                            },
+                            _ => panic!("invalid visualisation")
+                        };
                         sender.send(Event::PushMesh(mesh)).unwrap();
                     });
                 }

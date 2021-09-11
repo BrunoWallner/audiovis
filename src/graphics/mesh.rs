@@ -15,7 +15,7 @@ impl Mesh {
 }
 
 #[allow(clippy::needless_range_loop)]
-pub fn from_buffer(
+pub fn from_buffer_bars1(
     buffer: Vec<Vec<f32>>,
     width: f32,
     z_width: f32,
@@ -37,7 +37,7 @@ pub fn from_buffer(
         for i in 0..buffer_len {
             let width: f32 = 1.0 / buffer_len as f32 * width;
             let x = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0) + width;
-            let mut y: f32 = volume_amplitude * ( buffer[z][i] as f32 * 0.00175 );
+            let mut y: f32 = volume_amplitude * ( buffer[z][i] as f32 * 0.00175);
             y = y.powf(volume_factoring);
 
             // max height important because texture overflow could appear
@@ -65,6 +65,151 @@ pub fn from_buffer(
                 Vertex { position: [x + width,  y, z+z_width],      tex_coords:  [t_l_p, t_t_p] },
             ].to_vec());
 
+            let i = (vertices.len() - 8) as u32;
+            indices.append(&mut [
+                // front
+                i,
+                i+7,
+                i+4,
+                i,
+                i+3,
+                i+7,
+
+                // left
+                i+1,
+                i+4,
+                i+5,
+                i+1,
+                i,
+                i+4,
+
+                // right
+                i+3,
+                i+6,
+                i+7,
+                i+3,
+                i+2,
+                i+6,
+
+                // up
+                i+4,
+                i+6,
+                i+5,
+                i+4,
+                i+7,
+                i+6,
+            ].to_vec());
+        }
+    }
+    Mesh {vertices, indices}
+}
+
+#[allow(clippy::needless_range_loop)]
+pub fn from_buffer_bars2(
+    buffer: Vec<Vec<f32>>,
+    width: f32,
+    z_width: f32,
+    volume_amplitude: f32,
+    volume_factoring: f32,
+) -> Mesh  {
+    let mut vertices: Vec<Vertex> = Vec::new();
+    let mut indices: Vec<u32> = Vec::new();
+
+    let mut buffer_length_index: Vec<usize> = Vec::new();
+    let mut length: usize = 0;
+    for i in 0..buffer.len() {
+        buffer_length_index.push(length);
+        length += buffer[i].len();
+    }
+
+    for z in 0..buffer.len() {
+        let buffer_len = buffer[z].len();
+        for i in 0..buffer_len {
+            let width: f32 = 1.0 / buffer_len as f32 * width;
+            let x = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0) + width;
+            let mut y: f32 = volume_amplitude * ( buffer[z][i] as f32 * 0.00175 * 0.5);
+            y = y.powf(volume_factoring);
+
+            // max height important because texture overflow could appear
+            if y > 1.0 {
+                y = 1.0;
+            }
+
+            y *= 4.0;
+
+            let t_t_p: f32 = 1.0 - y; // texture_top_pos
+            let t_l_p: f32 = z as f32 / buffer.len() as f32;
+            let t_r_p: f32 = (z + 1) as f32 / buffer.len() as f32;
+            let z: f32 = z as f32 * -z_width;
+
+            y *= 0.5;
+
+            let tp: f32 = y - 0.25;
+            let bp: f32 = (y * -1.0) - 0.25;
+
+            // upper half
+            vertices.append(&mut [
+                Vertex { position: [x - width,  -0.25, z+z_width],   tex_coords:  [t_l_p, 1.0] },
+                Vertex { position: [x - width,  -0.25, z],           tex_coords:  [t_r_p, 1.0] },
+                Vertex { position: [x + width,  -0.25, z],           tex_coords:  [t_r_p, 1.0] },
+                Vertex { position: [x + width,  -0.25, z+z_width],   tex_coords:  [t_l_p, 1.0] },
+
+                Vertex { position: [x - width,  tp, z+z_width],      tex_coords:  [t_l_p, t_t_p] },
+                Vertex { position: [x - width,  tp, z],              tex_coords:  [t_r_p, t_t_p] },
+                Vertex { position: [x + width,  tp, z],              tex_coords:  [t_r_p, t_t_p] },
+                Vertex { position: [x + width,  tp, z+z_width],      tex_coords:  [t_l_p, t_t_p] },
+            ].to_vec());
+
+            // downer half? idk its late
+            vertices.append(&mut [
+                Vertex { position: [x - width,  bp, z+z_width],   tex_coords:  [t_l_p, t_t_p] },
+                Vertex { position: [x - width,  bp, z],           tex_coords:  [t_r_p, t_t_p] },
+                Vertex { position: [x + width,  bp, z],           tex_coords:  [t_r_p, t_t_p] },
+                Vertex { position: [x + width,  bp, z+z_width],   tex_coords:  [t_l_p, t_t_p] },
+
+                Vertex { position: [x - width,  -0.25, z+z_width],      tex_coords:  [t_l_p, 1.0] },
+                Vertex { position: [x - width,  -0.25, z],              tex_coords:  [t_r_p, 1.0] },
+                Vertex { position: [x + width,  -0.25, z],              tex_coords:  [t_r_p, 1.0] },
+                Vertex { position: [x + width,  -0.25, z+z_width],      tex_coords:  [t_l_p, 1.0] },
+            ].to_vec());
+
+            // upper half
+            let i = (vertices.len() - 16) as u32;
+            indices.append(&mut [
+                // front
+                i,
+                i+7,
+                i+4,
+                i,
+                i+3,
+                i+7,
+
+                // left
+                i+1,
+                i+4,
+                i+5,
+                i+1,
+                i,
+                i+4,
+
+                // right
+                i+3,
+                i+6,
+                i+7,
+                i+3,
+                i+2,
+                i+6,
+
+                // up
+                i+4,
+                i+6,
+                i+5,
+                i+4,
+                i+7,
+                i+6,
+            ].to_vec());
+
+            // the other half
             let i = (vertices.len() - 8) as u32;
             indices.append(&mut [
                 // front

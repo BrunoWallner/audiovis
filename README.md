@@ -29,11 +29,13 @@ It should also be possible without much work to port it over to the web but I ne
 * selectable amount of frequencies that should be displayed (0 - 20.000)
 * automatically selecting Desktop output-audio-stream as input-stream
 * bar texturing
+* selecting sampling rate of audio-stream
++ multiple types of visualisation
 * even runs on raspberrypi 4
 
 ##### WiP
 * modifiable config via userinput during runtime
-* selecting sampling rate of audio-stream
+* more visualisation types
 * beat visualisation
 
 ## How to configure
