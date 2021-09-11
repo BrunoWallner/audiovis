@@ -123,11 +123,15 @@ pub fn bar_reduction(buffer: &mut Vec<f32>, bar_reduction: u32) {
         }
         buffer[position] = y / bar_reduction as f32;
 
-        // actual removing
+        /* actual removing
         for x in 1..bar_reduction as usize {
             if position + x < buffer.len() {
                 buffer.remove(position + x);
             }
+        }
+        */
+        if (position + bar_reduction as usize) < buffer.len() {
+            buffer.drain(position..position + bar_reduction as usize);
         }
 
         position += 1;

@@ -44,12 +44,15 @@ pub fn from_buffer_bars1(
             if y > 1.0 {
                 y = 1.0;
             }
+
+            y *= 3.0;
+
             let t_t_p: f32 = 1.0 - y; // texture_top_pos
             let t_l_p: f32 = z as f32 / buffer.len() as f32;
             let t_r_p: f32 = (z + 1) as f32 / buffer.len() as f32;
             let z: f32 = z as f32 * -z_width;
 
-            y *= 2.0;
+            y *= 1.0 / 1.5;
             y -= 1.0;
 
 
@@ -135,14 +138,14 @@ pub fn from_buffer_bars2(
                 y = 1.0;
             }
 
-            y *= 4.0;
+            y *= 3.0;
 
             let t_t_p: f32 = 1.0 - y; // texture_top_pos
             let t_l_p: f32 = z as f32 / buffer.len() as f32;
             let t_r_p: f32 = (z + 1) as f32 / buffer.len() as f32;
             let z: f32 = z as f32 * -z_width;
 
-            y *= 0.5;
+            y *= 1.0 / 1.5;
 
             let tp: f32 = y - 0.25;
             let bp: f32 = (y * -1.0) - 0.25;

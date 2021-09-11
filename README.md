@@ -1,6 +1,8 @@
 # audiovis
 I tried to create a high resolution and classic audio visualiser with [cpal](https://github.com/RustAudio/cpal) as audio backend and [wgpu](https://github.com/gfx-rs/wgpu) as accelerated video frontend
 
+It is not intended to be scientifically used.
+
 ## demo
 ![](/media/demo.gif)
 

@@ -18,10 +18,10 @@ fov = 45
 # max frequency that should be displayed, lower does not mean any saved work on cpu
 max_frequency = 20000
 width = 1.0
-z_width = 0.025
+z_width = 0.0
 
 smoothing_size = 25
-smoothing_amount = 1
+smoothing_amount = 2
 
 # hides the cursor if hovered over audiovis window
 hide_cursor = false
@@ -45,14 +45,14 @@ frequency = 60
 normalisation_factoring = 0.5
 
 # range of frequencies which scale should be increased
-fav_frequency_range = [30, 3500]
-fav_frequency_doubling = 2
+fav_frequency_range = [0, 3500]
+fav_frequency_doubling = 3
 
 # how many buffers should be saved and displayed in 3D
-buffering = 2
+buffering = 1
 
-# halfes the scale x times
-bar_reduction = 2
+# reduces the number of bars
+bar_reduction = 5
 
 buffer_resolution_drop = 0.5
 max_buffer_resolution_drop = 7
