@@ -5,7 +5,7 @@ const DEFAULT_CONFIG: &str =
 "
 [visual]
 # possible values are Bars1, Bars2
-visualisation = 'Bars2'
+visualisation = 'Bars1'
 
 # path to bar_texture, 'default' for default texture
 # example would be 'example_textures/lavender.png'
@@ -17,11 +17,11 @@ fov = 45
 
 # max frequency that should be displayed, lower does not mean any saved work on cpu
 max_frequency = 20000
-width = 1.0
-z_width = 0.0
+width = 0.6
+z_width = 0.1
 
-smoothing_size = 25
-smoothing_amount = 2
+smoothing_size = 30
+smoothing_amount = 3
 
 # hides the cursor if hovered over audiovis window
 hide_cursor = false
@@ -31,13 +31,13 @@ fullscreen = false
 window_always_on_top = false
 
 [processing]
-gravity = 0.5
-
 # higher resolution adds latency and processing time
 # resolution should be factor of 2 for improved fft performance
+# this will distort time_smoothing, etc...
 resolution = 3000
 
-# how many times the calculated buffer should be display every sencond
+# how many times the calculated buffer should be display every second
+# this will distort time_smoothing, etc...
 frequency = 60
 
 # normalizes the position of bars, higher value encreases proportions of lower frequencies
@@ -45,23 +45,26 @@ frequency = 60
 normalisation_factoring = 0.5
 
 # range of frequencies which scale should be increased
-fav_frequency_range = [0, 3500]
+fav_frequency_range = [10, 3500]
 fav_frequency_doubling = 3
 
 # how many buffers should be saved and displayed in 3D
 buffering = 1
 
-# reduces the number of bars
-bar_reduction = 5
+# how the animation should be smoothed over time, increases latency and cpu load
+time_smoothing = 10
 
-buffer_resolution_drop = 0.5
-max_buffer_resolution_drop = 7
+# reduces the number of bars
+bar_reduction = 15
+
+buffer_resolution_drop = 0.15
+max_buffer_resolution_drop = 5
 
 [audio]
 # should improve quality
 pre_fft_windowing = true
 
-volume_amplitude = 100.0
+volume_amplitude = 200.0
 volume_factoring = 1.0
 ";
 
@@ -98,11 +101,11 @@ pub struct Audio {
 
 #[derive(Deserialize, Clone)]
 pub struct Processing {
-    pub gravity: f32,
     pub normalisation_factoring: f32,
     pub fav_frequency_range: [u32; 2],
     pub fav_frequency_doubling: u16,
     pub buffering: u32,
+    pub time_smoothing: usize,
     pub bar_reduction: u32,
     pub buffer_resolution_drop: f32,
     pub max_buffer_resolution_drop: u16,
@@ -143,15 +146,8 @@ pub fn get_config(path: &str) -> Result<Config, String> {
 }
 
 pub fn check_config(config: Config) -> Result<(), String> {
-    let p = config.processing;
-    if p.gravity < 0.0 {
-        return Err(String::from("error at processing section, max value for buffering is 100"))
-    }
     if config.visual.max_frequency > 20000 || config.visual.max_frequency < 100 {
         return Err(String::from("error at processing section, max_frequency must be in between of 100 and 20.000"))
-    }
-    if p.gravity < 0.0 {
-        return Err(String::from("error at processing section, gravity must be greater than 0.0"))
     }
 
     Ok(())

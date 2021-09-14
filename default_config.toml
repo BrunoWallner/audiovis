@@ -1,0 +1,64 @@
+
+[visual]
+# possible values are Bars1, Bars2
+visualisation = 'Bars1'
+
+# path to bar_texture, 'default' for default texture
+# example would be 'example_textures/lavender.png'
+texture = 'image.png'
+
+camera_pos = [0.0, -0.25, 1.9]
+camera_facing = [0.0, -0.25, 0.0]
+fov = 45
+
+# max frequency that should be displayed, lower does not mean any saved work on cpu
+max_frequency = 20000
+width = 0.6
+z_width = 0.1
+
+smoothing_size = 30
+smoothing_amount = 3
+
+# hides the cursor if hovered over audiovis window
+hide_cursor = false
+
+# start audiovis in fullscreen-mode, pressing F also toggles fullscreen
+fullscreen = false
+window_always_on_top = false
+
+[processing]
+gravity = 0.35
+
+# higher resolution adds latency and processing time
+# resolution should be factor of 2 for improved fft performance
+resolution = 3000
+
+# how many times the calculated buffer should be display every sencond
+frequency = 60
+
+# normalizes the position of bars, higher value encreases proportions of lower frequencies
+# default value should be 0.5 but with favourite_freq_scaling this should be increased
+normalisation_factoring = 0.5
+
+# range of frequencies which scale should be increased
+fav_frequency_range = [10, 3500]
+fav_frequency_doubling = 3
+
+# how many buffers should be saved and displayed in 3D
+buffering = 1
+
+# how the animation should be smoothed over time, increases latency and cpu load
+time_smoothing = 10
+
+# reduces the number of bars
+bar_reduction = 15
+
+buffer_resolution_drop = 0.15
+max_buffer_resolution_drop = 5
+
+[audio]
+# should improve quality
+pre_fft_windowing = true
+
+volume_amplitude = 200.0
+volume_factoring = 1.0

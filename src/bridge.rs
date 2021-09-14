@@ -15,24 +15,29 @@ pub fn init(
     config: Config,
 ) {
     let mut buffer: Vec<Vec<f32>> = Vec::new();
+    // could be implemented in a more memory efficient way but i like simplicity
+    let mut smoothing_buffer: Vec<Vec<f32>> = Vec::new();
     let mut mesh: mesh::Mesh = mesh::Mesh::new();
-    let mut smoothing_buffer: Vec<f32> = Vec::new();
 
     // this thread must be running, otherwise the whole app crashes
     thread::spawn(move || loop {
         match receiver.recv() {
             Ok(event) => match event {
-                Event::Push(mut n) => {
-                    bar_reduction(&mut n, config.processing.bar_reduction);
-                    if !buffer.is_empty() {
-                        //smooth_buffer(&mut n, config.visual.smoothing_amount, config.visual.smoothing_size);
-                        n = buffer_gravity(smoothing_buffer.clone(), n, (config.processing.gravity * 0.25 ) + 1.0);
-                    }
-                    smoothing_buffer = n.clone();
-                    buffer.insert(0, n);
+                Event::Push(mut b) => {
+                    bar_reduction(&mut b, config.processing.bar_reduction);
+
+                    smoothing_buffer.push(b.clone());
+
+                    smooth_buffer(smoothing_buffer.clone(), &mut b);
+
+                    buffer.insert(0, b.clone());
                     if buffer.len() > config.processing.buffering as usize {
                         buffer.pop();
                     }
+                    if smoothing_buffer.len() > config.processing.time_smoothing {
+                        smoothing_buffer.remove(0);
+                    }
+
                     let mut buffer = buffer.clone();
                     let config = config.clone();
                     let sender = sender.clone();
@@ -82,27 +87,26 @@ pub fn init(
     });
 }
 
-#[allow(clippy::same_item_push)]
-fn buffer_gravity(
-    mut old_buffer: Vec<f32>,
-    new_buffer: Vec<f32>,
-    gravity: f32,
-) -> Vec<f32> {
-    // buffering and time smoothing
-    let mut output_buffer: Vec<f32> = Vec::new();
-    let difference: i32 = new_buffer.len() as i32 - old_buffer.len() as i32;
-    if difference > 0 {
-        for _ in 0..difference {
-            old_buffer.push(0.0);
+// every buffer MUST have the same length!
+fn smooth_buffer(
+    smoothing_buffer: Vec<Vec<f32>>,
+    buffer: &mut Vec<f32>,
+) {
+    let mut smoothed_percentage: f32 = 0.0;
+    for (pos_z, z_buffer) in smoothing_buffer.iter().enumerate() {
+        // needed for weighting the Importance of earch z_buffer, more frequent -> more weight
+        // should decrease latency
+        let percentage: f32 = pos_z as f32 / smoothing_buffer.len() as f32;
+        //let percentage: f32 = 1.0;
+        smoothed_percentage += percentage;
+        for (pos_x, value) in z_buffer.iter().enumerate() {
+            buffer[pos_x] += value * percentage;
         }
     }
-    for i in 0..new_buffer.len() {
-        if new_buffer[i] > old_buffer[i] {
-            old_buffer[i] = new_buffer[i]
-        }
-        output_buffer.push(old_buffer[i] / gravity);
+
+    for b in buffer.iter_mut() {
+        *b /= smoothed_percentage;
     }
-    output_buffer
 }
 
 // reduces resolution of buffer

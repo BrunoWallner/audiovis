@@ -237,7 +237,7 @@ fn normalize(buffer: Vec<f32>, factoring: f32) -> Vec<f32> {
 
             // volume normalisation
             let mut y = buffer[i];
-            y *= ((i + 1) as f32 / buffer_len as f32).powf(1.0);
+            y *= (i + 2) as f32 / buffer_len as f32;
 
             if output_buffer[pos] < y {
                 output_buffer[pos] = y;
@@ -258,18 +258,18 @@ fn normalize(buffer: Vec<f32>, factoring: f32) -> Vec<f32> {
     }
 
     // smoothing of 'bass' frequencys
-    let end_pos: usize = pos_index[4][1]; // end position of fifth frequency
+    let end_pos: usize = pos_index[5][1]; // end position of fifth frequency
 
     for i in 0..end_pos {
         let mut y = 0.0;
-        for x in 0..=10 {
+        for x in 0..10 {
             y += output_buffer[i+x];
         }
         output_buffer[i] = y / 10.0;
     }
-    for i in 0..end_pos * 2 {
+    for i in 0..(end_pos as f32 * 1.5) as usize {
         let mut y = 0.0;
-        for x in 0..=6 {
+        for x in 0..6 {
             y += output_buffer[i+x];
         }
         output_buffer[i] = y / 6.0;
