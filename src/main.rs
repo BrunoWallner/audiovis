@@ -8,99 +8,48 @@ use winit::{
 use wgpu::util::DeviceExt;
 use std::sync::mpsc;
 
-mod bridge;
+use audioviz;
 
-mod config;
-mod audio;
 mod graphics;
 use graphics::wgpu_abstraction::State;
 
-use clap::{Arg, App};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+
+use std::thread;
 
 fn main() {
-    //env_logger::init();
-
-    let matches = App::new("audiovis")
-        .version("0.1.0")
-        .author("Luca Biendl <b.lucab1211@gmail.com>")
-        .about("tool to visualize audio")
-        .arg(Arg::with_name("config")
-                    .short("c")
-                    .long("config")
-                    .takes_value(true)
-                    .help("use custom configuration"))
-
-        .arg(Arg::with_name("input_device")
-                    .short("i")
-                    .long("input-device")
-                    .takes_value(false)
-                    .help("use input device to visualize"))
-
-        .arg(Arg::with_name("generate_default_config")
-                    .short("g")
-                    .long("generate-default-config")
-                    .takes_value(false)
-                    .help("generates default configuration"))
-
-        .get_matches();
-
-    let config_path: &str = matches.value_of("config").unwrap_or("default");
-    let mut audio_device: audio::DeviceType = audio::DeviceType::Output();
-    if matches.is_present("input_device") {
-        audio_device = audio::DeviceType::Input();
-    }
-
-    if matches.is_present("generate_default_config") {
-        config::generate_default_config();
-        println!("generated default config");
-        std::process::exit(0);
-    }
-
-    let config = match config::get_config(config_path) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
+    let audio_stream = audioviz::AudioStream::init(
+        audioviz::Config {
+            density_reduction: 10,
+            smoothing_size: 50,
+            smoothing_amount: 5,
+            frequency_scale_range: [0, 3500],
+            frequency_scale_amount: 3,
+            buffering: 7,
+            resolution: 3000,
+            ..Default::default()
         }
-    };
+    );
+    let event_sender = audio_stream.get_event_sender();
 
-    // initiates communication bridge between audio input and wgpu
-    let (bridge_sender, bridge_receiver) = mpsc::channel();
-    bridge::init(
-        bridge_receiver,
-        config.clone(),
-    );
-    audio::stream_input(
-        audio_device,
-        bridge_sender.clone(),
-        config.clone(),
-    );
+    init_audio_sender(event_sender.clone());
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(String::from("audiovis"))
         .build(&event_loop).unwrap();
 
-    // window configuration
-    window.set_cursor_visible(!config.visual.hide_cursor);
-
     let mut state = pollster::block_on(State::new(
         &window,
-        bridge_sender.clone(),
-        config.clone(),
+        event_sender,
     ));
-
-    if config.visual.fullscreen {
-        window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-    }
-    window.set_always_on_top(config.visual.window_always_on_top);
 
     event_loop.run(move |event, _, control_flow| {
         match event {
-            Event::WindowEvent {
+            winit::event::Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() => if !state.input(event) { // UPDATED!
+            } if window_id == window.id() => if !state.input(event) {
                 match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::KeyboardInput {
@@ -157,5 +106,40 @@ fn main() {
             _ => {}
         }
     });
+}
+
+fn init_audio_sender(event_sender: mpsc::Sender<audioviz::Event>) {
+    thread::spawn(move || {
+        let host = cpal::default_host();
+
+        let device = host.default_output_device().unwrap();
+
+        let device_config =  device.default_output_config().unwrap();
+
+        let stream = match device_config.sample_format() {
+            cpal::SampleFormat::F32 => device.build_input_stream(
+                &device_config.into(),
+                move |data, _: &_| handle_input_data_f32(data, event_sender.clone()),
+                err_fn,
+            ).unwrap(),
+            other => {
+                panic!("Unsupported sample format {:?}", other);
+            }
+        };
+
+        stream.play().unwrap();
+
+        // parks the thread so stream.play() does not get dropped and stops
+        thread::park();
+    });
+}
+
+fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<audioviz::Event>) {
+    // sends the raw data to audio_stream via the event_sender
+    sender.send(audioviz::Event::SendData(data.to_vec())).unwrap();
+}
+
+fn err_fn(err: cpal::StreamError) {
+    eprintln!("an error occurred on stream: {}", err);
 }
 

@@ -1,5 +1,4 @@
 use crate::*;
-use crate::config::Config;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -40,12 +39,11 @@ pub struct State {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
-    bridge_sender: mpsc::Sender<bridge::Event>,
-    config: Config,
+    event_sender: mpsc::Sender<audioviz::Event>,
 }
 impl State {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window, bridge_sender: mpsc::Sender<bridge::Event>, config: Config) -> Self {
+    pub async fn new(window: &Window, event_sender: mpsc::Sender<audioviz::Event>) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -161,8 +159,7 @@ impl State {
             vertex_buffer,
             index_buffer,
             num_indices,
-            bridge_sender,
-            config,
+            event_sender,
         }
     }
 
@@ -179,55 +176,41 @@ impl State {
 
     pub fn update(&mut self) {
         let (tx, rc) = mpsc::channel();
-        self.bridge_sender.send(bridge::Event::Consume(tx)).unwrap();
+        self.event_sender.send(audioviz::Event::RequestData(tx)).unwrap();
 
-        let received = rc.recv().unwrap();
+        let mut received = rc.recv().unwrap();
 
         if received.len() <= 0 {
             return
         }
-        let mut vertices: Vec<Vertex> = Vec::new();
-        let mut indices: Vec<u16> = Vec::new();
-
+        for i in 0..received.len() {
+            received.insert(0, received[i*2])
+        }
         // visualisation of buffer
-        let (mut v, mut i) = graphics::mesh::convert_to_buffer(
+        let (v, i) = graphics::mesh::convert_to_buffer(
             received.clone(),
-            self.config.visual.visualisation.clone(),
-            self.config.visual.width,
-            self.config.audio.volume_amplitude,
-            self.config.audio.volume_factoring,
-            self.config.visual.top_color,
-            self.config.visual.bottom_color,
+            String::from("Bars"),
+            1.0,
+            10.0,
+            1.0,
+            [0.5, 0.0, 0.1],
+            [0.25, 0.0, 0.0],
+            self.size.width as f32 / self.size.height as f32,
         );
-        vertices.append(&mut v);
-        indices.append(&mut i);
 
-
-        /* visualisation of text
-        let(_size, (mut v, mut i)) = mesh::convert_text(
-            String::from("HALAL, BUMSA\nBIMA"),
-            0.15,
-            [50.0 / self.size.width as f32, 50.0 / self.size.height as f32],
-            [1.0, 1.0, 1.0],
-            vertices.len() as u16,
-        );
-        vertices.append(&mut v);
-        indices.append(&mut i);
-        */
-
-        self.num_indices = indices.len() as u32;
+        self.num_indices = i.len() as u32;
 
         let vertex_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
+                contents: bytemuck::cast_slice(&v),
                 usage: wgpu::BufferUsage::VERTEX,
             }
         );
         let index_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&indices),
+                contents: bytemuck::cast_slice(&i),
                 usage: wgpu::BufferUsage::INDEX,
             }
         );

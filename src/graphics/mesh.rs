@@ -8,6 +8,7 @@ pub fn convert_to_buffer(
     volume_factoring: f32,
     top_color: [f32; 3],
     bottom_color: [f32; 3],
+    aspect_ratio: f32,
 ) -> (Vec<Vertex>, Vec<u16>)  {
 
     let mut vertices: Vec<Vertex> = Vec::new();
@@ -92,7 +93,7 @@ pub fn convert_to_buffer(
             }
         },
         "Strings" => {
-            let width = width * 2.5;
+            let width = width * 5.0;
             for i in 0..buffer.len() - 1 {
                 let x1: f32 = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0);
                 let x2: f32 = ((i + 1) as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0);
@@ -101,7 +102,7 @@ pub fn convert_to_buffer(
 
                 let color: [f32; 3] = [top_color[0] * (y1 + 1.0), top_color[1] * (y1 + 1.0), top_color[2] * (y1 + 1.0)];
 
-                let (mut vertices2, mut indices2) = draw_line([x1, y1], [x2, y2], width, color, vertices.len() as u16);
+                let (mut vertices2, mut indices2) = draw_line([x1, y1], [x2, y2], width, color, vertices.len() as u16, aspect_ratio);
                 vertices.append(&mut vertices2);
                 indices.append(&mut indices2);
             }
@@ -117,6 +118,7 @@ fn draw_line(
     width: f32,
     color: [f32; 3],
     vertex_len: u16,
+    aspect_ratio: f32,
 ) -> (Vec<Vertex>, Vec<u16>) {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut indices: Vec<u16> = Vec::new();
@@ -129,8 +131,8 @@ fn draw_line(
     let dx = x2 - x1;
     let dy = y2 - y1;
     let l = dx.hypot (dy);
-    let u = dx * width * 0.5 / l;
-    let v = dy * width * 0.5 / l;
+    let u = dx * width * 0.5 / l * aspect_ratio;
+    let v = dy * width * 0.5 / l / aspect_ratio;
 
     vertices.push(Vertex { position: [x1 + v,  y1 - u, 0.0], color });
     vertices.push(Vertex { position: [x1 - v,  y1 + u, 0.0], color });
