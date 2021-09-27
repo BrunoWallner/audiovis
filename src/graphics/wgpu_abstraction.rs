@@ -78,6 +78,7 @@ impl State {
 
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
+            //flags: wgpu::ShaderFlags::all(), // very weird behavior, could be the fault of rust nightly but I am not sure
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 

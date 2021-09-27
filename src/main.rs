@@ -139,13 +139,13 @@ fn init_auto_volume(event_sender: mpsc::Sender<audioviz::Event>) {
         }
 
         let wanted_volume_amplitude = if average > 0.5 {
-            config.volume_amplitude - 0.01
+            config.volume - 0.01
         } else {
-            config.volume_amplitude + 0.01
+            config.volume + 0.01
         };
 
         let wanted_config: audioviz::Config = audioviz::Config {
-            volume_amplitude: wanted_volume_amplitude,
+            volume: wanted_volume_amplitude,
             ..config
         };
 
