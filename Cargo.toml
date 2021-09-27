@@ -8,7 +8,7 @@ resolver = "2"
 
 [dependencies]
 winit = "0.25"
-wgpu = "0.9.0"
+wgpu = "0.10.0"
 pollster = "0.2"
 bytemuck = { version = "1.4", features = [ "derive" ] }
 audioviz = { path = "../audioviz" }

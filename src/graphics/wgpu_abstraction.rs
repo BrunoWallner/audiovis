@@ -1,4 +1,6 @@
-use crate::*;
+use winit::window::Window;
+use wgpu::util::DeviceExt;
+use std::sync::mpsc;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -6,12 +8,11 @@ pub struct Vertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
 }
-
 impl Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Vertex,
+            step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
                     offset: 0,
@@ -32,15 +33,15 @@ pub struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    sc_desc: wgpu::SwapChainDescriptor,
-    swap_chain: wgpu::SwapChain,
+    config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
     num_indices: u32,
+    index_buffer: wgpu::Buffer,
     event_sender: mpsc::Sender<audioviz::Event>,
 }
+
 impl State {
     // Creating some of the wgpu types requires async code
     pub async fn new(window: &Window, event_sender: mpsc::Sender<audioviz::Event>) -> Self {
@@ -48,7 +49,7 @@ impl State {
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance.request_adapter(
             &wgpu::RequestAdapterOptions {
@@ -66,18 +67,17 @@ impl State {
             None, // Trace path
         ).await.unwrap();
 
-        let sc_desc = wgpu::SwapChainDescriptor {
-            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-            format: adapter.get_swap_chain_preferred_format(&surface).unwrap(),
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface.get_preferred_format(&adapter).unwrap(),
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
         };
-        let swap_chain = device.create_swap_chain(&surface, &sc_desc);
+        surface.configure(&device, &config);
 
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            flags: wgpu::ShaderFlags::all(),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
@@ -96,15 +96,15 @@ impl State {
                 entry_point: "main", // 1.
                 buffers: &[
                     Vertex::desc(),
-                ], // 2.
+                ],
             },
             fragment: Some(wgpu::FragmentState { // 3.
                 module: &shader,
                 entry_point: "main",
                 targets: &[wgpu::ColorTargetState { // 4.
-                    format: sc_desc.format,
+                    format: config.format,
                     blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrite::ALL,
+                    write_mask: wgpu::ColorWrites::ALL,
                 }],
             }),
             primitive: wgpu::PrimitiveState {
@@ -127,91 +127,86 @@ impl State {
             },
         });
 
-        let vertices: Vec<Vertex> = Vec::new();
-
-        // must be align to 4 bytes
-        let indices: Vec<u16> = Vec::new();
-
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsage::VERTEX,
+                //contents: bytemuck::cast_slice(&[]),
+                contents: &[],
+                usage: wgpu::BufferUsages::VERTEX,
             }
         );
+
         let index_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsage::INDEX,
+                //contents: bytemuck::cast_slice(INDICES),
+                contents: &[],
+                usage: wgpu::BufferUsages::INDEX,
             }
         );
-        let num_indices = indices.len() as u32;
+        
 
         Self {
             surface,
             device,
             queue,
-            sc_desc,
-            swap_chain,
+            config,
             size,
             render_pipeline,
             vertex_buffer,
+            num_indices: 0,
             index_buffer,
-            num_indices,
             event_sender,
         }
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        self.size = new_size;
-        self.sc_desc.width = new_size.width;
-        self.sc_desc.height = new_size.height;
-        self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+        if new_size.width > 0 && new_size.height > 0 {
+            self.size = new_size;
+            self.config.width = new_size.width;
+            self.config.height = new_size.height;
+            self.surface.configure(&self.device, &self.config);
+        }
     }
 
-    pub fn input(&mut self, _event: &WindowEvent) -> bool {
+    pub fn input(&mut self, _event: &winit::event::WindowEvent) -> bool {
         false
     }
 
     pub fn update(&mut self) {
-        let (tx, rc) = mpsc::channel();
+        let (tx, rx) = mpsc::channel();
         self.event_sender.send(audioviz::Event::RequestData(tx)).unwrap();
+        let mut buffer = rx.recv().unwrap();
 
-        let mut received = rc.recv().unwrap();
+        for i in 0..buffer.len() {
+            buffer.insert(0, buffer[i*2]);
+        }
 
-        if received.len() <= 0 {
-            return
-        }
-        for i in 0..received.len() {
-            received.insert(0, received[i*2])
-        }
-        // visualisation of buffer
-        let (v, i) = graphics::mesh::convert_to_buffer(
-            received.clone(),
+        let (vertices, indices) = crate::graphics::mesh::from_buffer(
+            buffer,
             String::from("Bars"),
             1.0,
-            10.0,
             1.0,
-            [0.5, 0.0, 0.1],
-            [0.25, 0.0, 0.0],
+            1.0,
+            [1.0, 0.0, 0.0],
+            [0.0, 0.0, 0.05],
             self.size.width as f32 / self.size.height as f32,
         );
 
-        self.num_indices = i.len() as u32;
+        self.num_indices = indices.len() as u32;
 
         let vertex_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&v),
-                usage: wgpu::BufferUsage::VERTEX,
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsages::VERTEX,
             }
         );
         let index_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&i),
-                usage: wgpu::BufferUsage::INDEX,
+                contents: bytemuck::cast_slice(&indices),
+                usage: wgpu::BufferUsages::INDEX,
             }
         );
 
@@ -219,40 +214,43 @@ impl State {
         self.index_buffer = index_buffer;
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
-        let frame = self
-            .swap_chain
-            .get_current_frame()?
-            .output;
-
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        let output = self.surface.get_current_frame()?.output;
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
 
         {
+            // 1.
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[
+                    // This is what [[location(0)]] in the fragment shader targets
                     wgpu::RenderPassColorAttachment {
-                        view: &frame.view,
+                        view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.0,
-                                g: 0.0,
-                                b: 0.0,
-                                a: 0.0,
-                            }),
+                            load: wgpu::LoadOp::Clear(
+                                wgpu::Color {
+                                    r: 0.0,
+                                    g: 0.0,
+                                    b: 0.0,
+                                    a: 0.0,
+                                }
+                            ),
                             store: true,
                         }
                     }
                 ],
                 depth_stencil_attachment: None,
             });
+        
+            // NEW!
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32); // 1.
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1); // 2.
         }
 
         // submit will accept anything that implements IntoIter

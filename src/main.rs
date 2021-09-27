@@ -2,10 +2,8 @@ use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
-    window::Window,
-    window::Fullscreen,
 };
-use wgpu::util::DeviceExt;
+
 use std::sync::mpsc;
 
 use audioviz;
@@ -21,11 +19,12 @@ fn main() {
     let audio_stream = audioviz::AudioStream::init(
         audioviz::Config {
             density_reduction: 10,
-            smoothing_size: 50,
+            smoothing_size: 5,
             smoothing_amount: 5,
             frequency_scale_range: [0, 3500],
             frequency_scale_amount: 3,
-            buffering: 7,
+            max_frequency: 20_000,
+            buffering: 5,
             resolution: 3000,
             ..Default::default()
         }
@@ -33,50 +32,29 @@ fn main() {
     let event_sender = audio_stream.get_event_sender();
 
     init_audio_sender(event_sender.clone());
+    init_auto_volume(event_sender.clone());
 
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title(String::from("audiovis"))
-        .build(&event_loop).unwrap();
-
-    let mut state = pollster::block_on(State::new(
-        &window,
-        event_sender,
-    ));
+    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let mut state = pollster::block_on(State::new(&window, event_sender));
 
     event_loop.run(move |event, _, control_flow| {
         match event {
-            winit::event::Event::WindowEvent {
+            Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() => if !state.input(event) {
+            } if window_id == window.id() => if !state.input(event) { // UPDATED!
                 match event {
-                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                    WindowEvent::KeyboardInput {
-                        input,
-                        ..
-                    } => {
-                        match input {
+                    WindowEvent::CloseRequested
+                    | WindowEvent::KeyboardInput {
+                        input:
                             KeyboardInput {
                                 state: ElementState::Pressed,
                                 virtual_keycode: Some(VirtualKeyCode::Escape),
                                 ..
-                            } => *control_flow = ControlFlow::Exit,
-                            // F for fullscreen
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::F),
-                                ..
-                            } => {
-                                if !window.fullscreen().is_some() {
-                                    window.set_fullscreen(Some(Fullscreen::Borderless(None)))
-                                } else {
-                                    window.set_fullscreen(None)
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
+                            },
+                        ..
+                    } => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(physical_size) => {
                         state.resize(*physical_size);
                     }
@@ -86,19 +64,19 @@ fn main() {
                     _ => {}
                 }
             }
-            Event::RedrawRequested(_) => {
+            winit::event::Event::RedrawRequested(_) => {
                 state.update();
                 match state.render() {
                     Ok(_) => {}
-                    // Recreate the swap_chain if lost
-                    Err(wgpu::SwapChainError::Lost) => state.resize(state.size),
+                    // Reconfigure the surface if lost
+                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
                     // The system is out of memory, we should probably quit
-                    Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
                     Err(e) => eprintln!("{:?}", e),
                 }
             }
-            Event::MainEventsCleared => {
+            winit::event::Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
                 // request it.
                 window.request_redraw();
@@ -141,5 +119,39 @@ fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<audioviz::Event>) {
 
 fn err_fn(err: cpal::StreamError) {
     eprintln!("an error occurred on stream: {}", err);
+}
+
+fn init_auto_volume(event_sender: mpsc::Sender<audioviz::Event>) {
+    thread::spawn(move || loop {
+        let (tx, rx) = mpsc::channel();
+        event_sender.send(audioviz::Event::RequestConfig(tx)).unwrap();
+        let config = rx.recv().unwrap();
+
+        let (tx, rx) = mpsc::channel();
+        event_sender.send(audioviz::Event::RequestData(tx)).unwrap();
+        let data = rx.recv().unwrap();
+
+        let mut average: f32 = 0.0;
+        for i in data.iter() {
+            if *i > average {
+                average = *i;
+            }
+        }
+
+        let wanted_volume_amplitude = if average > 0.5 {
+            config.volume_amplitude - 0.01
+        } else {
+            config.volume_amplitude + 0.01
+        };
+
+        let wanted_config: audioviz::Config = audioviz::Config {
+            volume_amplitude: wanted_volume_amplitude,
+            ..config
+        };
+
+        event_sender.send(audioviz::Event::SendConfig(wanted_config)).unwrap();
+
+        thread::sleep(std::time::Duration::from_millis(50));
+    });
 }
 
