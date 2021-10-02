@@ -12,13 +12,15 @@ pub use config::Visualisation;
 mod audio;
 use audio::*;
 
-use clap::{Arg, App};
+use clap::{Arg, App, AppSettings};
 
 fn main() {
     let matches = App::new("audiovis")
     .version("0.1.0")
     .author("Luca Biendl <b.lucab1211@gmail.com>")
     .about("tool to visualize audio")
+    .setting(AppSettings::ColorAlways)
+    .setting(AppSettings::ColoredHelp)
     .arg(Arg::with_name("config")
                 .short("c")
                 .long("config")
@@ -68,13 +70,13 @@ fn main() {
     let audio_stream = audioviz::AudioStream::init(
         audioviz::Config {
             density_reduction: 0,
-            smoothing_size: 20,
-            smoothing_amount: 5,
+            smoothing_size: 5,
+            smoothing_amount: 10,
             frequency_scale_range: [0, 1000],
-            frequency_scale_amount: 2,
+            frequency_scale_amount: 0,
             max_frequency: 20_000,
-            buffering: 7,
-            resolution: 2048,
+            buffering: 5,
+            resolution: 3000,
             volume: 0.5,
             ..Default::default()
         }

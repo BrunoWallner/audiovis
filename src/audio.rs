@@ -2,6 +2,7 @@ use gag::Gag;
 use std::thread;
 use std::sync::mpsc;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use colored::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum AudioDevice {
@@ -29,10 +30,10 @@ pub fn init_audio_sender(event_sender: mpsc::Sender<audioviz::Event>, audio_devi
 
         match audio_device {
             AudioDevice::Input(_) => {
-                println!("using input device: {}", device.name().unwrap());
+                println!("using input device: {}", device.name().unwrap().green().bold());
             }
             AudioDevice::Output(_) => {
-                println!("using output device: {}", device.name().unwrap());
+                println!("using output device: {}", device.name().unwrap().green().bold());
             }
         }
 
@@ -83,16 +84,17 @@ pub fn iter_audio_devices() {
             .collect::<Vec<cpal::Device>>();
     }
     
-    println!("[input devices]");
+    println!("{}", "[input devices]".cyan().bold());
     for (i, x) in input_devices.iter().enumerate() {
-        println!("{}: {}", i, x.name().unwrap());
+        println!("{}: {}", i.to_string().green().bold(), x.name().unwrap());
     }
     println!("");
 
-    println!("[output devices]");
+    println!("{}", "[output devices]".cyan().bold());
     for (i, x) in output_devices.iter().enumerate() {
-        println!("{}: {}", i, x.name().unwrap());
+        println!("{}: {}", i.to_string().green().bold(), x.name().unwrap());
     }
+    println!("");
 }
 
 fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<audioviz::Event>) {

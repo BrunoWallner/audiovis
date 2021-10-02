@@ -66,7 +66,7 @@ pub fn from_buffer(
                 indices.append(&mut indices2);
             }
         },
-        Visualisation::StringCircle => {
+        Visualisation::Circle => {
             let width = width * 0.005;
             let radius: f32 = 0.3;
             let mut last_x: f32 = 0.0;
