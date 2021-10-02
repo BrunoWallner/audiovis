@@ -11,8 +11,7 @@ winit = "0.25"
 wgpu = "0.10.0"
 pollster = "0.2"
 bytemuck = { version = "1.4", features = [ "derive" ] }
-#audioviz = "0.1.1"
-audioviz = { path = "../audioviz" }
+audioviz = "0.1.2"
 serde = "1.0.127"
 toml = "0.5.8"
 clap = "2.33.3"

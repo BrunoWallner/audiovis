@@ -5,7 +5,7 @@ I tried to create a high resolution and yet classic audio visualiser with [cpal]
 ![](/media/demo.gif)
 
 ## 3D
-check the `experimental_3D` branch for experimental 3D support, keep in mind that the codebase is older, so it is not as modular, lookd not as nice and still depends on wgpu version 0.9.0 instead of 0.10.0
+check the `legacy_3D` branch for experimental 3D support, keep in mind that the codebase is older, so it is not as modular, does not look as nice and still depends on wgpu version 0.9.0 instead of 0.10.0
 
 ### Supported Platforms
 I primarily work on Linux so there will be the best support, but I try to keep portability in mind so it should work in Linux, Windows and MacOS
