@@ -3,36 +3,86 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-
-use std::sync::mpsc;
-
 use audioviz;
 
 mod graphics;
 use graphics::wgpu_abstraction::State;
+mod config;
+pub use config::Visualisation;
+mod audio;
+use audio::*;
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-
-use std::thread;
+use clap::{Arg, App};
 
 fn main() {
+    let matches = App::new("audiovis")
+    .version("0.1.0")
+    .author("Luca Biendl <b.lucab1211@gmail.com>")
+    .about("tool to visualize audio")
+    .arg(Arg::with_name("config")
+                .short("c")
+                .long("config")
+                .takes_value(true)
+                .help("use custom configuration"))
+
+    .arg(Arg::with_name("iter_devices")
+                .short("i")
+                .long("iter-devices")
+                .takes_value(false)
+                .help("iterate trough all available devices"))
+                
+    .arg(Arg::with_name("input_device")
+                .long("input-device")
+                .takes_value(true)
+                .help("use specific input device"))
+
+    .arg(Arg::with_name("output_device")
+                .long("output-device")
+                .takes_value(true)
+                .help("use specific output device"))
+
+    .arg(Arg::with_name("generate_default_config")
+                .short("g")
+                .long("generate-default-config")
+                .takes_value(false)
+                .help("generates default configuration"))
+
+    .get_matches();
+
+    let audio_device: AudioDevice = 
+        //if matches.value_of("input_device").unwrap_or("0").parse().unwrap();
+        if matches.is_present("input_device") {
+            AudioDevice::Input(matches.value_of("input_device").unwrap_or("0").parse().unwrap())
+        }
+        else if matches.is_present("output_device") {
+            AudioDevice::Output(matches.value_of("output_device").unwrap_or("0").parse().unwrap())
+        } else {
+            AudioDevice::Output(0)
+        };
+
+    if matches.is_present("iter_devices") {
+        iter_audio_devices();
+        std::process::exit(0);
+    }
+
     let audio_stream = audioviz::AudioStream::init(
         audioviz::Config {
-            density_reduction: 10,
-            smoothing_size: 5,
+            density_reduction: 0,
+            smoothing_size: 20,
             smoothing_amount: 5,
-            frequency_scale_range: [0, 3500],
-            frequency_scale_amount: 3,
+            frequency_scale_range: [0, 1000],
+            frequency_scale_amount: 2,
             max_frequency: 20_000,
-            buffering: 5,
-            resolution: 3000,
+            buffering: 7,
+            resolution: 2048,
+            volume: 0.5,
             ..Default::default()
         }
     );
     let event_sender = audio_stream.get_event_sender();
 
-    init_audio_sender(event_sender.clone());
-    init_auto_volume(event_sender.clone());
+    init_audio_sender(event_sender.clone(), audio_device);
+    //init_auto_volume(event_sender.clone());
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
@@ -85,42 +135,7 @@ fn main() {
         }
     });
 }
-
-fn init_audio_sender(event_sender: mpsc::Sender<audioviz::Event>) {
-    thread::spawn(move || {
-        let host = cpal::default_host();
-
-        let device = host.default_output_device().unwrap();
-
-        let device_config =  device.default_output_config().unwrap();
-
-        let stream = match device_config.sample_format() {
-            cpal::SampleFormat::F32 => device.build_input_stream(
-                &device_config.into(),
-                move |data, _: &_| handle_input_data_f32(data, event_sender.clone()),
-                err_fn,
-            ).unwrap(),
-            other => {
-                panic!("Unsupported sample format {:?}", other);
-            }
-        };
-
-        stream.play().unwrap();
-
-        // parks the thread so stream.play() does not get dropped and stops
-        thread::park();
-    });
-}
-
-fn handle_input_data_f32(data: &[f32], sender: mpsc::Sender<audioviz::Event>) {
-    // sends the raw data to audio_stream via the event_sender
-    sender.send(audioviz::Event::SendData(data.to_vec())).unwrap();
-}
-
-fn err_fn(err: cpal::StreamError) {
-    eprintln!("an error occurred on stream: {}", err);
-}
-
+/*
 fn init_auto_volume(event_sender: mpsc::Sender<audioviz::Event>) {
     thread::spawn(move || loop {
         let (tx, rx) = mpsc::channel();
@@ -138,7 +153,7 @@ fn init_auto_volume(event_sender: mpsc::Sender<audioviz::Event>) {
             }
         }
 
-        let wanted_volume_amplitude = if average > 0.5 {
+        let wanted_volume_amplitude = if average > 0.25 {
             config.volume - 0.01
         } else {
             config.volume + 0.01
@@ -154,4 +169,5 @@ fn init_auto_volume(event_sender: mpsc::Sender<audioviz::Event>) {
         thread::sleep(std::time::Duration::from_millis(50));
     });
 }
+*/
 

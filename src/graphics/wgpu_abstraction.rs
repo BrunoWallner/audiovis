@@ -1,6 +1,7 @@
 use winit::window::Window;
 use wgpu::util::DeviceExt;
 use std::sync::mpsc;
+use crate::config::Visualisation;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -179,19 +180,22 @@ impl State {
         self.event_sender.send(audioviz::Event::RequestData(tx)).unwrap();
         let mut buffer = rx.recv().unwrap();
 
+        //buffer.drain((buffer.len() - 50)..buffer.len());
+        //buffer.drain(0..10);
+
         for i in 0..buffer.len() {
             buffer.insert(0, buffer[i*2]);
         }
 
         let (vertices, indices) = crate::graphics::mesh::from_buffer(
             buffer,
-            String::from("Bars"),
+            Visualisation::StringCircle,
             1.0,
             1.0,
             1.0,
             [1.0, 0.0, 0.0],
             [0.0, 0.0, 0.05],
-            self.size.width as f32 / self.size.height as f32,
+            [self.size.width as f32 * 0.001, self.size.height as f32 * 0.001],
         );
 
         self.num_indices = indices.len() as u32;

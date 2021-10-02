@@ -1,23 +1,29 @@
 use crate::graphics::wgpu_abstraction::Vertex;
+use crate::config::Visualisation;
+use std::f32::consts::PI;
 
 pub fn from_buffer(
     buffer: Vec<f32>,
-    visualisation: String,
+    visualisation: Visualisation,
     width: f32,
     volume_amplitude: f32,
     volume_factoring: f32,
     top_color: [f32; 3],
     bottom_color: [f32; 3],
-    aspect_ratio: f32,
+    size: [f32; 2],
 ) -> (Vec<Vertex>, Vec<u32>)  {
 
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut indices: Vec<u32> = Vec::new();
     let buffer_len = buffer.len();
-    let width: f32 = 1.0 / buffer_len as f32 *   width;
 
-    match visualisation.as_str() {
-        "Bars" => {
+    if buffer.len() == 0 {
+        return (Vec::new(), Vec::new());
+    }
+
+    match visualisation {
+        Visualisation::Bars => {
+            let width: f32 = 1.0 / buffer_len as f32 * width;
             for i in 0..buffer.len() {
                 let x = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0) + width;
                 let y: f32 = volume_amplitude * ( (buffer[i] as f32).powf(volume_factoring) ) - 1.0;
@@ -39,8 +45,8 @@ pub fn from_buffer(
                 indices.push(i+3);
             }
         },
-        "Strings" => {
-            let width = width * 3.0;
+        Visualisation::Strings => {
+            let width = width * 0.005;
             for i in 0..buffer.len() - 1 {
                 let x1: f32 = (i as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0);
                 let x2: f32 = ((i + 1) as f32 - buffer_len as f32 / 2.0) / (buffer_len as f32 / 2.0);
@@ -49,12 +55,55 @@ pub fn from_buffer(
 
                 let color: [f32; 3] = [top_color[0] * (y1 + 1.0), top_color[1] * (y1 + 1.0), top_color[2] * (y1 + 1.0)];
 
-                let (mut vertices2, mut indices2) = draw_line([x1, y1], [x2, y2], width, color, vertices.len() as u32, aspect_ratio);
+                let (mut vertices2, mut indices2) = draw_line(
+                    [x1, y1], 
+                    [x2, y2], 
+                    width, color, 
+                    vertices.len() as u32, 
+                    size,
+                );
                 vertices.append(&mut vertices2);
                 indices.append(&mut indices2);
             }
         },
-        _ => (),
+        Visualisation::StringCircle => {
+            let width = width * 0.005;
+            let radius: f32 = 0.3;
+            let mut last_x: f32 = 0.0;
+            let mut last_y: f32 = 0.0;
+
+            for i in 0..buffer.len() - 1 {
+                let mut angle: f32 = 2.0 * PI * (i + 1) as f32 / (buffer.len() - 2) as f32;
+                let degree: f32 = 2.0 * PI / 360.0;
+                angle += degree * 270.0; // rotate circle 270°
+
+                let value: f32 = buffer[i];
+
+                let x: f32 = angle.cos() * (value + radius) / size[0];
+                let y: f32 = angle.sin() * (value + radius) / size[1];
+
+                let r: f32 = (top_color[0] * value) + (bottom_color[0] * (1.0 / value));
+                let g: f32 = (top_color[1] * value) + (bottom_color[1] * (1.0 / value));
+                let b: f32 = (top_color[2] * value) + (bottom_color[2] * (1.0 / value));
+
+                let color: [f32; 3] = [r, g ,b];
+
+                if i != 0 {
+                    let (mut vertices2, mut indices2) = draw_line(
+                        [last_x, last_y], 
+                        [x, y], 
+                        width, 
+                        color, 
+                        vertices.len() as u32, 
+                        size
+                    );
+                    vertices.append(&mut vertices2);
+                    indices.append(&mut indices2);
+                }
+                last_x = x;
+                last_y = y;
+            }
+        },
     }
     return (vertices, indices);
 }
@@ -65,7 +114,7 @@ fn draw_line(
     width: f32,
     color: [f32; 3],
     vertex_len: u32,
-    aspect_ratio: f32,
+    size: [f32; 2],
 ) -> (Vec<Vertex>, Vec<u32>) {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut indices: Vec<u32> = Vec::new();
@@ -78,8 +127,8 @@ fn draw_line(
     let dx = x2 - x1;
     let dy = y2 - y1;
     let l = dx.hypot (dy);
-    let u = dx * width * 0.5 / l * aspect_ratio;
-    let v = dy * width * 0.5 / l / aspect_ratio;
+    let u = dx * width * 0.5 / l / size[1];
+    let v = dy * width * 0.5 / l / size[0];
 
     vertices.push(Vertex { position: [x1 + v,  y1 - u, 0.0], color });
     vertices.push(Vertex { position: [x1 - v,  y1 + u, 0.0], color });
